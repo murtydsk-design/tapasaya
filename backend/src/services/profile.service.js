@@ -11,7 +11,7 @@ async function getUserProfile(userId, page = 1, limit = 10) {
   // 1. Fetch User & Character details
   const userCharRes = await db.query(
     `SELECT 
-       u.id AS user_id, u.name, u.email, u.created_at AS user_created_at,
+       u.id AS user_id, u.name, u.email, u.phone_number, u.created_at AS user_created_at,
        u.google_avatar_url, u.custom_avatar_url, u.avatar_type, u.avatar_id,
        c.level, c.total_xp, c.gold, c.strength, c.intellect, c.focus, c.knowledge, c.discipline
      FROM users u
@@ -151,6 +151,8 @@ async function getUserProfile(userId, page = 1, limit = 10) {
       id: row.user_id,
       name: row.name,
       email: row.email,
+      phone: row.phone_number || null,
+      phone_number: row.phone_number || null,
       createdAt: row.user_created_at,
       avatar: formatUserAvatar(row)
     },
@@ -240,6 +242,130 @@ async function updateUserAvatar(userId, { avatar_type, avatar_id, custom_url }) 
     id: updatedRow.id,
     name: updatedRow.name,
     email: updatedRow.email,
+    phone: updatedRow.phone_number || null,
+    phone_number: updatedRow.phone_number || null,
+    created_at: updatedRow.created_at,
+    avatar: formatUserAvatar(updatedRow)
+  };
+}
+
+/**
+ * Updates authenticated user's personal profile information: Name, Email, Phone Number.
+ * Enforces server-side validation, duplicate email prevention, user isolation, and Google OAuth safety.
+ */
+async function updateUserProfileInfo(userId, { name, email, phone, phone_number }) {
+  // 1. Fetch existing user account
+  const userRes = await db.query(
+    'SELECT id, name, email, phone_number, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;',
+    [userId]
+  );
+
+  if (userRes.rows.length === 0) {
+    const error = new Error('User profile not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const existingUser = userRes.rows[0];
+
+  // 2. Validate Name (Required, non-empty, max 100 chars)
+  let trimmedName = (name !== undefined ? name : existingUser.name);
+  if (typeof trimmedName === 'string') {
+    trimmedName = trimmedName.trim();
+  }
+  if (!trimmedName) {
+    const error = new Error('Please enter your name.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (trimmedName.length > 100) {
+    const error = new Error('Name cannot exceed 100 characters.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // 3. Validate Email (Required, valid format, max 255 chars)
+  let trimmedEmail = (email !== undefined ? email : existingUser.email);
+  if (typeof trimmedEmail === 'string') {
+    trimmedEmail = trimmedEmail.trim().toLowerCase();
+  }
+  if (!trimmedEmail) {
+    const error = new Error('Please enter a valid email address.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(trimmedEmail) || trimmedEmail.length > 255) {
+    const error = new Error('Please enter a valid email address.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Check if Google user is attempting to change email
+  if (existingUser.google_avatar_url && trimmedEmail !== existingUser.email.toLowerCase()) {
+    const error = new Error('Google-authenticated accounts cannot change their login email because Google OAuth relies on your Google email address.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Check duplicate email across other user accounts
+  if (trimmedEmail !== existingUser.email.toLowerCase()) {
+    const dupRes = await db.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id != $2;',
+      [trimmedEmail, userId]
+    );
+    if (dupRes.rows.length > 0) {
+      const error = new Error('That email is already in use.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  // 4. Validate Phone Number (Optional/Nullable, max 30 chars, valid format)
+  const rawPhone = phone !== undefined ? phone : (phone_number !== undefined ? phone_number : existingUser.phone_number);
+  let trimmedPhone = null;
+  if (rawPhone && typeof rawPhone === 'string') {
+    trimmedPhone = rawPhone.trim();
+    if (trimmedPhone === '') {
+      trimmedPhone = null;
+    }
+  }
+
+  if (trimmedPhone !== null) {
+    if (trimmedPhone.length > 30) {
+      const error = new Error('Phone number cannot exceed 30 characters.');
+      error.statusCode = 400;
+      throw error;
+    }
+    const phoneRegex = /^[+\d\s\-()]*$/;
+    if (!phoneRegex.test(trimmedPhone)) {
+      const error = new Error('Please enter a valid phone number.');
+      error.statusCode = 400;
+      throw error;
+    }
+  }
+
+  // 5. Update user in PostgreSQL database
+  const updateRes = await db.query(
+    `UPDATE users
+     SET name = $1,
+         email = $2,
+         phone_number = $3,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $4
+     RETURNING id, name, email, phone_number, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id;`,
+    [trimmedName, trimmedEmail, trimmedPhone, userId]
+  );
+
+  const updatedRow = updateRes.rows[0];
+
+  return {
+    id: updatedRow.id,
+    name: updatedRow.name,
+    email: updatedRow.email,
+    phone: updatedRow.phone_number || null,
+    phone_number: updatedRow.phone_number || null,
     created_at: updatedRow.created_at,
     avatar: formatUserAvatar(updatedRow)
   };
@@ -247,5 +373,6 @@ async function updateUserAvatar(userId, { avatar_type, avatar_id, custom_url }) 
 
 module.exports = {
   getUserProfile,
-  updateUserAvatar
+  updateUserAvatar,
+  updateUserProfileInfo
 };

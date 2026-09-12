@@ -36,6 +36,7 @@ const upload = multer({
 router.use(authenticateToken);
 
 router.get('/', profileController.getProfile);
+router.put('/', profileController.updateProfile);
 router.patch('/avatar', (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err) {

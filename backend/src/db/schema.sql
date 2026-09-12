@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
+    phone_number VARCHAR(30) NULL,
     google_avatar_url VARCHAR(500) NULL,
     custom_avatar_url VARCHAR(500) NULL,
     avatar_type VARCHAR(20) NOT NULL DEFAULT 'preset',

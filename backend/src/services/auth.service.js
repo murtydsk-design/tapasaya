@@ -151,7 +151,7 @@ async function loginUser({ email, password }) {
  */
 async function getUserById(userId) {
   const userRes = await db.query(
-    'SELECT id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;',
+    'SELECT id, name, email, phone_number, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;',
     [userId]
   );
 
@@ -166,6 +166,8 @@ async function getUserById(userId) {
     id: user.id,
     name: user.name,
     email: user.email,
+    phone: user.phone_number || null,
+    phone_number: user.phone_number || null,
     created_at: user.created_at,
     avatar: formatUserAvatar(user)
   };

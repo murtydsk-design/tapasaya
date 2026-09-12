@@ -6,6 +6,11 @@ export const profileApi = {
     return res.data;
   },
 
+  updateProfile: async ({ name, email, phone }) => {
+    const res = await api.put('/profile', { name, email, phone });
+    return res.data;
+  },
+
   updateAvatar: async (avatar_type, avatar_id) => {
     if (avatar_type instanceof FormData) {
       const res = await api.patch('/profile/avatar', avatar_type, {

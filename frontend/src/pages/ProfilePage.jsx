@@ -13,6 +13,11 @@ export const ProfilePage = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [allCompletions, setAllCompletions] = useState([]);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [formSuccess, setFormSuccess] = useState(null);
 
   const fetchProfile = useCallback(async (pageNum = 1, isLoadMore = false) => {
     try {
@@ -51,6 +56,82 @@ export const ProfilePage = () => {
     if (res.success && res.data?.user) {
       updateUser(res.data.user);
       setProfileData(prev => prev ? { ...prev, user: { ...prev.user, avatar: res.data.user.avatar } } : prev);
+    }
+  };
+
+  const handleOpenEditProfile = () => {
+    const currentUser = profileData?.user || user;
+    setEditForm({
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || currentUser?.phone_number || ''
+    });
+    setFormError(null);
+    setFormSuccess(null);
+    setIsEditingProfile(true);
+  };
+
+  const handleCancelEditProfile = () => {
+    setIsEditingProfile(false);
+    setFormError(null);
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
+
+    const nameTrimmed = editForm.name.trim();
+    const emailTrimmed = editForm.email.trim();
+    const phoneTrimmed = editForm.phone ? editForm.phone.trim() : '';
+
+    if (!nameTrimmed) {
+      setFormError('Please enter your name.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailTrimmed || !emailRegex.test(emailTrimmed)) {
+      setFormError('Please enter a valid email address.');
+      return;
+    }
+
+    if (phoneTrimmed && !/^[+\d\s\-()]*$/.test(phoneTrimmed)) {
+      setFormError('Please enter a valid phone number.');
+      return;
+    }
+
+    try {
+      setSavingProfile(true);
+      const res = await profileApi.updateProfile({
+        name: nameTrimmed,
+        email: emailTrimmed,
+        phone: phoneTrimmed
+      });
+
+      if (res.success && res.data?.user) {
+        const updatedUser = res.data.user;
+        updateUser(updatedUser);
+        setProfileData(prev => prev ? {
+          ...prev,
+          user: {
+            ...prev.user,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            phone: updatedUser.phone || updatedUser.phone_number || null,
+            phone_number: updatedUser.phone_number || updatedUser.phone || null
+          }
+        } : prev);
+
+        setFormSuccess('Profile updated successfully.');
+        setIsEditingProfile(false);
+      } else {
+        setFormError(res.message || 'Unable to update your profile. Please try again.');
+      }
+    } catch (err) {
+      setFormError(err.response?.data?.message || err.message || 'Unable to update your profile. Please try again.');
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -99,44 +180,188 @@ export const ProfilePage = () => {
     );
   }
 
-  const { user, progress, questStats, bestStreak, dailyStreaks, pagination } = profileData || {};
+  const { user: profileUser, progress, questStats, bestStreak, dailyStreaks, pagination } = profileData || {};
+  const displayUser = profileUser || user;
   const attributes = progress?.attributes || {};
   const hasMoreCompletions = pagination ? page < pagination.totalPages : false;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Profile Header & Avatar Card */}
-      <div className="glass-panel" style={{
-        padding: '2rem',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center',
-        gap: '1rem'
-      }}>
-        <Avatar user={user} size={96} />
+      {!isEditingProfile ? (
+        <div className="glass-panel" style={{
+          padding: '2rem',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          gap: '1rem'
+        }}>
+          <Avatar user={displayUser} size={96} />
 
-        <div>
-          <h1 style={{ fontSize: '1.75rem', color: 'var(--text-main)', fontWeight: 700, margin: 0 }}>
-            {user?.name || 'User Profile'}
-          </h1>
-          <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: '0.2rem', marginBottom: 0 }}>
-            {user?.email}
-          </p>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
-            Member since {formatMemberDate(user?.createdAt)}
-          </p>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', color: 'var(--text-main)', fontWeight: 700, margin: 0 }}>
+              {displayUser?.name || 'User Profile'}
+            </h1>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: '0.2rem', marginBottom: 0 }}>
+              {displayUser?.email}
+            </p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.2rem', marginBottom: 0 }}>
+              Phone: {displayUser?.phone || displayUser?.phone_number ? (displayUser.phone || displayUser.phone_number) : 'Not added'}
+            </p>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
+              Member since {formatMemberDate(displayUser?.createdAt)}
+            </p>
+          </div>
+
+          {formSuccess && (
+            <div style={{
+              padding: '0.6rem 1rem',
+              background: 'rgba(120, 184, 146, 0.15)',
+              border: '1px solid var(--emerald)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--emerald)',
+              fontSize: '0.875rem',
+              fontWeight: 500
+            }}>
+              {formSuccess}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={handleOpenEditProfile}
+              className="btn-primary"
+              style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 500 }}
+            >
+              Edit Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAvatarModal(true)}
+              className="btn-secondary"
+              style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 500 }}
+            >
+              Change Avatar
+            </button>
+          </div>
         </div>
+      ) : (
+        /* Edit Profile Form Card */
+        <div className="glass-panel" style={{
+          padding: '2rem',
+          maxWidth: '520px',
+          margin: '0 auto',
+          width: '100%'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+            <Avatar user={displayUser} size={64} />
+            <div>
+              <h2 style={{ fontSize: '1.35rem', color: 'var(--text-main)', fontWeight: 700 }}>Edit Profile</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Update your personal profile information</p>
+            </div>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setShowAvatarModal(true)}
-          className="btn-secondary"
-          style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 500 }}
-        >
-          Change Avatar
-        </button>
-      </div>
+          {formError && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: 'rgba(217, 120, 120, 0.15)',
+              border: '1px solid var(--rose)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--rose)',
+              fontSize: '0.875rem',
+              marginBottom: '1.25rem'
+            }}>
+              {formError}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+            <div>
+              <label htmlFor="edit-profile-name" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                Name
+              </label>
+              <input
+                id="edit-profile-name"
+                type="text"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Enter your name"
+                required
+                disabled={savingProfile}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9rem'
+                }}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-profile-email" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                Email
+              </label>
+              <input
+                id="edit-profile-email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                placeholder="user@email.com"
+                required
+                disabled={savingProfile}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9rem'
+                }}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-profile-phone" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                Phone Number
+              </label>
+              <input
+                id="edit-profile-phone"
+                type="tel"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                placeholder="Enter phone number"
+                disabled={savingProfile}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9rem'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={handleCancelEditProfile}
+                className="btn-secondary"
+                disabled={savingProfile}
+                style={{ padding: '0.6rem 1.25rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={savingProfile}
+                style={{ padding: '0.6rem 1.25rem' }}
+              >
+                {savingProfile ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Progress & Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>

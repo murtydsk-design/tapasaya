@@ -23,6 +23,7 @@ async function runMigration() {
 
     // Apply attribute migration: Set defaults to 0 and update constraints
     await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS google_avatar_url VARCHAR(500);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_avatar_url VARCHAR(500);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_type VARCHAR(20) DEFAULT 'preset';

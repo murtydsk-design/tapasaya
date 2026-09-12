@@ -52,3 +52,31 @@ exports.updateAvatar = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * Handles updating authenticated user profile information (Name, Email, Phone Number): PUT /api/profile
+ */
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { name, email, phone, phone_number } = req.body || {};
+
+    const updatedUser = await profileService.updateUserProfileInfo(userId, {
+      name,
+      email,
+      phone,
+      phone_number
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully.',
+      data: {
+        user: updatedUser
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
