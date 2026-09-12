@@ -14,13 +14,13 @@ function generateToken(userId) {
 
 /**
  * Formats standard avatar payload object for user records.
- * Priority order: custom_avatar_url > avatar_id > google_avatar_url > default avatar ('aarav')
+ * Priority order: custom_avatar_url > avatar_id > google_avatar_url > default avatar ('avatar_01')
  */
 function formatUserAvatar(userRow) {
   const googleUrl = userRow.google_avatar_url || null;
   const customUrl = userRow.custom_avatar_url || null;
   const type = userRow.avatar_type || (customUrl ? 'custom' : (googleUrl ? 'google' : 'preset'));
-  const id = userRow.avatar_id || 'aarav';
+  const id = userRow.avatar_id || 'avatar_01';
 
   let activeUrl = id;
   if (type === 'custom' && customUrl) {
@@ -62,7 +62,7 @@ async function registerUser({ name, email, password }) {
     // Insert User
     const userRes = await client.query(
       `INSERT INTO users (name, email, password_hash, avatar_type, avatar_id)
-       VALUES ($1, $2, $3, 'preset', 'aarav')
+       VALUES ($1, $2, $3, 'preset', 'avatar_01')
        RETURNING id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id;`,
       [name, email, passwordHash]
     );
@@ -244,8 +244,8 @@ async function googleLogin(idToken) {
       await client.query('BEGIN');
 
       const newUserRes = await client.query(
-        `INSERT INTO users (name, email, password_hash, google_avatar_url, avatar_type, avatar_id)
-         VALUES ($1, $2, $3, $4, $5, 'aarav')
+        `INSERT INTO users (name, email, password_hash, avatar_type, avatar_id)
+         VALUES ($1, $2, $3, $4, $5, 'avatar_01')
          RETURNING id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id;`,
         [name, email, passwordHash, googlePicture, initialAvatarType]
       );

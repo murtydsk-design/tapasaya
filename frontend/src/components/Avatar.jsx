@@ -15,7 +15,7 @@ export const Avatar = ({ user, size = 'md', style = {}, className = '' }) => {
   const dimension = typeof size === 'number' ? size : SIZES[size] || 40;
 
   const avatarInfo = user?.avatar || {};
-  const preset = getPresetAvatar(avatarInfo.id || 'aarav');
+  const preset = getPresetAvatar(avatarInfo.id || 'avatar_01');
 
   // Custom photo
   const rawCustomUrl = avatarInfo.customUrl || (avatarInfo.type === 'custom' ? avatarInfo.url : null);
@@ -26,43 +26,9 @@ export const Avatar = ({ user, size = 'md', style = {}, className = '' }) => {
   const isCustomType = avatarInfo.type === 'custom' && customUrl && !imgError;
   const isGoogleType = avatarInfo.type === 'google' && avatarInfo.googleUrl && !imgError;
 
-  const photoSrc = isCustomType ? customUrl : (isGoogleType ? avatarInfo.googleUrl : null);
-
-  if (photoSrc) {
-    return (
-      <div
-        className={`avatar-circle ${className}`}
-        style={{
-          width: `${dimension}px`,
-          height: `${dimension}px`,
-          minWidth: `${dimension}px`,
-          minHeight: `${dimension}px`,
-          borderRadius: '50%',
-          overflow: 'hidden',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '2px solid var(--border-color)',
-          background: 'var(--badge-bg)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-          boxSizing: 'border-box',
-          ...style
-        }}
-      >
-        <img
-          src={photoSrc}
-          alt={user?.name || 'Profile Avatar'}
-          onError={() => setImgError(true)}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            borderRadius: '50%'
-          }}
-        />
-      </div>
-    );
-  }
+  const photoSrc = isCustomType
+    ? customUrl
+    : (isGoogleType ? avatarInfo.googleUrl : preset.url);
 
   return (
     <div
@@ -73,20 +39,29 @@ export const Avatar = ({ user, size = 'md', style = {}, className = '' }) => {
         minWidth: `${dimension}px`,
         minHeight: `${dimension}px`,
         borderRadius: '50%',
+        overflow: 'hidden',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: preset.bgGradient,
-        border: `2px solid ${preset.borderColor}`,
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+        border: '2px solid var(--border-color)',
+        background: 'var(--badge-bg)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         boxSizing: 'border-box',
-        overflow: 'hidden',
-        userSelect: 'none',
         ...style
       }}
-      title={preset.name}
+      title={user?.name || preset.name}
     >
-      {preset.renderIcon('#ffffff')}
+      <img
+        src={photoSrc}
+        alt={user?.name || preset.name}
+        onError={() => setImgError(true)}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          borderRadius: '50%'
+        }}
+      />
     </div>
   );
 };

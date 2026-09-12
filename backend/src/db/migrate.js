@@ -26,7 +26,7 @@ async function runMigration() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS google_avatar_url VARCHAR(500);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_avatar_url VARCHAR(500);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_type VARCHAR(20) DEFAULT 'preset';
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id VARCHAR(50) DEFAULT 'aarav';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id VARCHAR(50) DEFAULT 'avatar_01';
 
       ALTER TABLE characters ALTER COLUMN strength SET DEFAULT 0;
       ALTER TABLE characters ALTER COLUMN intellect SET DEFAULT 0;

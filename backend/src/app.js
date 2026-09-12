@@ -27,8 +27,9 @@ app.use(cors({
   credentials: true
 }));
 
-// Serve Uploaded Files Statically
+// Serve Uploaded Files & Preset Avatars Statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/avatars', express.static(path.join(__dirname, '../../Avatars')));
 
 // Body Parsing Middleware
 app.use(express.json({ limit: '10mb' }));

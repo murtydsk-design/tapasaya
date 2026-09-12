@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     google_avatar_url VARCHAR(500) NULL,
     custom_avatar_url VARCHAR(500) NULL,
     avatar_type VARCHAR(20) NOT NULL DEFAULT 'preset',
-    avatar_id VARCHAR(50) NOT NULL DEFAULT 'aarav',
+    avatar_id VARCHAR(50) NOT NULL DEFAULT 'avatar_01',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

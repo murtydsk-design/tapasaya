@@ -3,7 +3,7 @@ import { PRESET_AVATARS } from '../utils/avatarUtils';
 
 export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
   const [activeTab, setActiveTab] = useState('preset'); // 'preset' | 'custom' | 'google'
-  const [selectedPresetId, setSelectedPresetId] = useState('aarav');
+  const [selectedPresetId, setSelectedPresetId] = useState('avatar_01');
   const [customFile, setCustomFile] = useState(null);
   const [customPreviewUrl, setCustomPreviewUrl] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -23,7 +23,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
       } else {
         setActiveTab('preset');
       }
-      setSelectedPresetId(user.avatar?.id || 'aarav');
+      setSelectedPresetId(user.avatar?.id || 'avatar_01');
       setCustomFile(null);
       setCustomPreviewUrl(null);
       setSaving(false);
@@ -133,7 +133,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '540px',
+          maxWidth: '560px',
           maxHeight: '90vh',
           overflowY: 'auto',
           padding: '1.75rem',
@@ -261,15 +261,15 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
           )}
         </div>
 
-        {/* Tab 1: TAPASYA Avatars Grid */}
+        {/* Tab 1: TAPASYA Avatars Grid (24 Official PNG Avatars) */}
         {activeTab === 'preset' && (
           <div>
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))',
                 gap: '0.75rem',
-                maxHeight: '320px',
+                maxHeight: '340px',
                 overflowY: 'auto',
                 paddingRight: '0.25rem'
               }}
@@ -285,46 +285,42 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      padding: '0.5rem 0.25rem',
+                      padding: '0.35rem',
                       borderRadius: 'var(--radius-md)',
                       border: `2px solid ${isSelected ? 'var(--primary)' : 'transparent'}`,
                       background: isSelected ? 'var(--badge-bg)' : 'transparent',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                       outline: 'none',
-                      boxShadow: isSelected ? '0 0 0 2px rgba(99, 102, 241, 0.3)' : 'none'
+                      boxShadow: isSelected ? '0 0 0 2px rgba(99, 102, 241, 0.35)' : 'none'
                     }}
                     title={avatar.name}
                   >
                     <div
                       style={{
-                        width: '46px',
-                        height: '46px',
+                        width: '54px',
+                        height: '54px',
                         borderRadius: '50%',
-                        background: avatar.bgGradient,
-                        border: `1.5px solid ${avatar.borderColor}`,
+                        overflow: 'hidden',
+                        border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}`,
+                        background: 'var(--badge-bg)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: '0.25rem',
                         transition: 'transform 0.15s ease'
                       }}
                     >
-                      {avatar.renderIcon('#ffffff')}
+                      <img
+                        src={avatar.url}
+                        alt={avatar.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          borderRadius: '50%'
+                        }}
+                      />
                     </div>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: isSelected ? 700 : 500,
-                        color: isSelected ? 'var(--text-main)' : 'var(--text-dim)',
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '100%'
-                      }}
-                    >
-                      {avatar.name}
-                    </span>
                   </button>
                 );
               })}
