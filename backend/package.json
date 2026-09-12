@@ -1,0 +1,42 @@
+{
+  "name": "tapasya-backend",
+  "version": "1.0.0",
+  "description": "Backend API for TAPASYA (Life RPG) - PERN stack with Neon PostgreSQL",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "db:migrate": "node src/db/migrate.js",
+    "db:test": "node src/db/test-db.js",
+    "test:auth": "node src/test-auth.js",
+    "test:security": "node src/test-security-auth.js",
+    "test:quests": "node src/test-quests.js",
+    "test:rpg": "node src/test-rpg.js",
+    "test:rewards": "node src/test-rewards.js",
+    "test": "node src/test-backend.js && node src/test-auth.js && node src/test-security-auth.js && node src/test-quests.js && node src/test-rpg.js && node src/test-rewards.js"
+  },
+  "keywords": [
+    "tapasya",
+    "life-rpg",
+    "express",
+    "pern",
+    "neon",
+    "postgresql"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-rate-limit": "^8.7.0",
+    "google-auth-library": "^11.0.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
