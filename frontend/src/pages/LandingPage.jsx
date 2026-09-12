@@ -1,17 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { LogoutModal } from '../components/LogoutModal';
 
 export const LandingPage = () => {
   const { isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleConfirmLogout = async () => {
+    await logout();
+    setShowLogoutModal(false);
   };
 
   return (
@@ -92,7 +99,7 @@ export const LandingPage = () => {
                 <Link to="/dashboard" className="btn-primary" style={{ padding: '0.5rem 1.15rem', fontSize: '0.9rem' }}>
                   Dashboard
                 </Link>
-                <button onClick={logout} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                <button onClick={() => setShowLogoutModal(true)} className="btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
                   Log Out
                 </button>
               </>
@@ -409,6 +416,12 @@ export const LandingPage = () => {
           </div>
         </div>
       </footer>
+
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </div>
   );
 };
