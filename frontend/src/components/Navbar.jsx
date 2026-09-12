@@ -123,50 +123,31 @@ export const Navbar = () => {
             <span style={{ fontSize: '0.8rem' }}>{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
 
-          {/* Dynamic User Profile Dropdown */}
+          {/* Dynamic User Profile Control (Icon-Only Avatar Trigger) */}
           {user?.name && (
-            <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <div ref={dropdownRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <button
                 type="button"
                 onClick={() => setDropdownOpen((prev) => !prev)}
                 aria-haspopup="true"
                 aria-expanded={dropdownOpen}
                 aria-controls="user-profile-dropdown"
+                aria-label="Open profile menu"
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
-                  background: dropdownOpen ? 'var(--badge-bg)' : 'transparent',
-                  border: '1px solid',
-                  borderColor: dropdownOpen ? 'var(--primary)' : 'transparent',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '0.25rem 0.65rem 0.25rem 0.35rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: 'var(--text-main)',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: '2px solid',
+                  borderColor: dropdownOpen ? 'var(--gold)' : 'transparent',
+                  borderRadius: '50%',
+                  padding: '2px',
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
+                  outline: 'none'
                 }}
               >
-                <Avatar user={user} size={28} />
-                <span>{user.name}</span>
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{
-                    transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s ease',
-                    color: 'var(--text-muted)'
-                  }}
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+                <Avatar user={user} size={36} />
               </button>
 
               {dropdownOpen && (

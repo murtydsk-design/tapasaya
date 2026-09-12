@@ -287,12 +287,12 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
                       alignItems: 'center',
                       padding: '0.35rem',
                       borderRadius: 'var(--radius-md)',
-                      border: `2px solid ${isSelected ? 'var(--primary)' : 'transparent'}`,
+                      border: `2px solid ${isSelected ? 'var(--gold)' : 'transparent'}`,
                       background: isSelected ? 'var(--badge-bg)' : 'transparent',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                       outline: 'none',
-                      boxShadow: isSelected ? '0 0 0 2px rgba(99, 102, 241, 0.35)' : 'none'
+                      boxShadow: isSelected ? '0 0 0 2px rgba(245, 158, 11, 0.4)' : 'none'
                     }}
                     title={avatar.name}
                   >
@@ -302,7 +302,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
                         height: '54px',
                         borderRadius: '50%',
                         overflow: 'hidden',
-                        border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}`,
+                        border: `2px solid ${isSelected ? 'var(--gold)' : 'var(--border-color)'}`,
                         background: 'var(--badge-bg)',
                         display: 'flex',
                         alignItems: 'center',
