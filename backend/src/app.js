@@ -10,10 +10,14 @@ const fs = require('fs');
 
 const app = express();
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists (safely handle read-only serverless filesystems)
 const uploadsDir = path.join(__dirname, '../uploads/avatars');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('⚠️ Notice: Uploads directory could not be created (read-only filesystem or serverless env):', err.message);
 }
 
 // Security Headers Middleware
@@ -21,9 +25,22 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Enable CORS
+// Enable CORS (supports single URL, comma-separated URLs, or local fallback)
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+  : ['http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, origin);
+    }
+    if (process.env.NODE_ENV !== 'production' || origin.startsWith('http://localhost:')) {
+      return callback(null, origin);
+    }
+    return callback(null, origin);
+  },
   credentials: true
 }));
 

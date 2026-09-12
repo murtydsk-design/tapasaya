@@ -9,7 +9,10 @@ const pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === 'production' || (connectionString && connectionString.includes('neon.tech'))
     ? { rejectUnauthorized: false }
-    : false
+    : false,
+  max: process.env.DB_POOL_MAX ? parseInt(process.env.DB_POOL_MAX, 10) : 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000
 });
 
 /**
