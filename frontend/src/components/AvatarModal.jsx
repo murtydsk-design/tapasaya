@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Cropper from 'react-easy-crop';
 import { PRESET_AVATARS } from '../utils/avatarUtils';
+import { getCroppedImg } from '../utils/cropImage';
 
 export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
   const [activeTab, setActiveTab] = useState('preset'); // 'preset' | 'custom' | 'google'
   const [selectedPresetId, setSelectedPresetId] = useState('avatar_01');
   const [customFile, setCustomFile] = useState(null);
   const [customPreviewUrl, setCustomPreviewUrl] = useState(null);
+  
+  // Crop & Adjust states
+  const [cropStep, setCropStep] = useState('select'); // 'select' | 'crop'
+  const [selectedImageSrc, setSelectedImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -26,6 +36,11 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
       setSelectedPresetId(user.avatar?.id || 'avatar_01');
       setCustomFile(null);
       setCustomPreviewUrl(null);
+      setCropStep('select');
+      setSelectedImageSrc(null);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
       setSaving(false);
       setError(null);
     }
@@ -55,7 +70,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
     // Validate file type
     const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validMimes.includes(file.type.toLowerCase())) {
-      setError('Please choose an image file.');
+      setError('Please choose a valid image file.');
       return;
     }
 
@@ -67,7 +82,11 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
 
     setCustomFile(file);
     const objectUrl = URL.createObjectURL(file);
-    setCustomPreviewUrl(objectUrl);
+    setSelectedImageSrc(objectUrl);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
+    setCropStep('crop');
     setActiveTab('custom');
   };
 
@@ -78,14 +97,19 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
 
     try {
       if (activeTab === 'custom') {
-        if (customFile) {
+        if (cropStep === 'crop' && selectedImageSrc && croppedAreaPixels) {
+          const croppedFile = await getCroppedImg(selectedImageSrc, croppedAreaPixels);
+          const formData = new FormData();
+          formData.append('file', croppedFile);
+          await onSave(formData);
+        } else if (customFile) {
           const formData = new FormData();
           formData.append('file', customFile);
           await onSave(formData);
         } else if (user?.avatar?.customUrl) {
           await onSave('custom');
         } else {
-          setError('Please select a photo first.');
+          setError('Please choose a photo first.');
           setSaving(false);
           return;
         }
@@ -96,7 +120,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
       }
       onClose();
     } catch (err) {
-      setError(err.message || 'Unable to save profile picture. Please try again.');
+      setError(err.message || 'Unable to process this photo. Please try another image.');
     } finally {
       setSaving(false);
     }
@@ -328,8 +352,91 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
           </div>
         )}
 
-        {/* Tab 2: Your Photo (Upload Device Photo) */}
-        {activeTab === 'custom' && (
+        {/* Tab 2: Your Photo (Crop & Adjust Controls) */}
+        {activeTab === 'custom' && cropStep === 'crop' && selectedImageSrc && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              style={{ display: 'none' }}
+            />
+
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                Crop your photo
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                Drag photo to position your face inside the circle. Use slider to zoom.
+              </div>
+            </div>
+
+            {/* Cropper Container */}
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: '260px',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+                background: 'var(--track-bg)',
+                border: '1px solid var(--border-color)'
+              }}
+            >
+              <Cropper
+                image={selectedImageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_area, pixels) => setCroppedAreaPixels(pixels)}
+              />
+            </div>
+
+            {/* Zoom Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem' }}>
+              <label htmlFor="zoom-slider" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', minWidth: '45px' }}>
+                Zoom
+              </label>
+              <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)', fontWeight: 700 }}>−</span>
+              <input
+                id="zoom-slider"
+                type="range"
+                min={1}
+                max={3}
+                step={0.05}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                disabled={saving}
+                aria-label="Zoom photo"
+                style={{
+                  flex: 1,
+                  cursor: 'pointer',
+                  accentColor: 'var(--primary)'
+                }}
+              />
+              <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)', fontWeight: 700 }}>+</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={saving}
+                className="btn-secondary"
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
+              >
+                Choose Different Photo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'custom' && cropStep === 'select' && (
           <div
             style={{
               display: 'flex',
@@ -348,11 +455,11 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
               type="file"
               ref={fileInputRef}
               onChange={handleFileSelect}
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
               style={{ display: 'none' }}
             />
 
-            {(customPreviewUrl || user?.avatar?.customUrl) ? (
+            {user?.avatar?.customUrl ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
                 <div
                   style={{
@@ -365,25 +472,23 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
                   }}
                 >
                   <img
-                    src={customPreviewUrl || (user.avatar.customUrl.startsWith('http') ? user.avatar.customUrl : `http://localhost:5000${user.avatar.customUrl}`)}
-                    alt="Photo Preview"
+                    src={user.avatar.customUrl.startsWith('http') ? user.avatar.customUrl : `http://localhost:5000${user.avatar.customUrl}`}
+                    alt="Current Custom Photo"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 </div>
 
-                {customFile && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {customFile.name} ({(customFile.size / 1024).toFixed(1)} KB)
-                  </span>
-                )}
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Active profile photo
+                </div>
 
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="btn-secondary"
-                  style={{ fontSize: '0.85rem', padding: '0.45rem 1.15rem' }}
+                  className="btn-primary"
+                  style={{ fontSize: '0.875rem', padding: '0.55rem 1.5rem' }}
                 >
-                  Change Photo
+                  Choose New Photo
                 </button>
               </div>
             ) : (
