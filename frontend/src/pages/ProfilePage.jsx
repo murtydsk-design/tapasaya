@@ -5,7 +5,7 @@ import { Avatar } from '../components/Avatar';
 import { AvatarModal } from '../components/AvatarModal';
 
 export const ProfilePage = () => {
-  const { updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -641,7 +641,7 @@ export const ProfilePage = () => {
         isOpen={showAvatarModal}
         onClose={() => setShowAvatarModal(false)}
         onSave={handleSaveAvatar}
-        user={user}
+        user={displayUser || user}
       />
     </div>
   );
