@@ -1,20 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PRESET_AVATARS } from '../utils/avatarUtils';
 
 export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
-  const [selectedType, setSelectedType] = useState('preset');
-  const [selectedId, setSelectedId] = useState('avatar_01');
+  const [activeTab, setActiveTab] = useState('preset'); // 'preset' | 'custom' | 'google'
+  const [selectedPresetId, setSelectedPresetId] = useState('aarav');
+  const [customFile, setCustomFile] = useState(null);
+  const [customPreviewUrl, setCustomPreviewUrl] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  const fileInputRef = useRef(null);
+
+  const hasGooglePhoto = !!user?.avatar?.googleUrl;
+
   useEffect(() => {
     if (isOpen && user) {
-      setSelectedType(user.avatar?.type || 'preset');
-      setSelectedId(user.avatar?.id || 'avatar_01');
+      const type = user.avatar?.type || 'preset';
+      if (type === 'custom') {
+        setActiveTab('custom');
+      } else if (type === 'google' && hasGooglePhoto) {
+        setActiveTab('google');
+      } else {
+        setActiveTab('preset');
+      }
+      setSelectedPresetId(user.avatar?.id || 'aarav');
+      setCustomFile(null);
+      setCustomPreviewUrl(null);
       setSaving(false);
       setError(null);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, hasGooglePhoto]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -31,17 +46,57 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
 
   if (!isOpen) return null;
 
-  const hasGooglePhoto = !!user?.avatar?.googleUrl;
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+
+    // Validate file type
+    const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validMimes.includes(file.type.toLowerCase())) {
+      setError('Please choose an image file.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image is too large. Please choose a smaller image.');
+      return;
+    }
+
+    setCustomFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setCustomPreviewUrl(objectUrl);
+    setActiveTab('custom');
+  };
 
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
     setError(null);
+
     try {
-      await onSave(selectedType, selectedId);
+      if (activeTab === 'custom') {
+        if (customFile) {
+          const formData = new FormData();
+          formData.append('file', customFile);
+          await onSave(formData);
+        } else if (user?.avatar?.customUrl) {
+          await onSave('custom');
+        } else {
+          setError('Please select a photo first.');
+          setSaving(false);
+          return;
+        }
+      } else if (activeTab === 'google') {
+        await onSave('google');
+      } else {
+        await onSave('preset', selectedPresetId);
+      }
       onClose();
     } catch (err) {
-      setError(err.message || 'Unable to save avatar. Please try again.');
+      setError(err.message || 'Unable to save profile picture. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -65,7 +120,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.65)',
+        background: 'rgba(0, 0, 0, 0.7)',
         backdropFilter: 'var(--glass-backdrop)',
         zIndex: 300,
         display: 'flex',
@@ -78,7 +133,9 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '540px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           padding: '1.75rem',
           borderRadius: 'var(--radius-lg)',
           background: 'var(--bg-card)',
@@ -89,6 +146,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
           gap: '1.25rem'
         }}
       >
+        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2
             id="avatar-modal-title"
@@ -99,7 +157,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
               margin: 0
             }}
           >
-            Choose your avatar
+            Choose your profile picture
           </h2>
           <button
             type="button"
@@ -119,6 +177,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
           </button>
         </div>
 
+        {/* Error Notice */}
         {error && (
           <div
             role="alert"
@@ -128,119 +187,270 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
               color: 'var(--rose)',
               padding: '0.65rem 0.85rem',
               borderRadius: 'var(--radius-sm)',
-              fontSize: '0.85rem'
+              fontSize: '0.85rem',
+              fontWeight: 500
             }}
           >
             {error}
           </div>
         )}
 
-        {/* Google Photo Option (If Available) */}
-        {hasGooglePhoto && (
-          <div
-            onClick={() => setSelectedType('google')}
+        {/* Navigation Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            borderBottom: '1px solid var(--border-color)',
+            paddingBottom: '0.5rem'
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab('preset')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              padding: '0.75rem 1rem',
+              padding: '0.45rem 0.9rem',
               borderRadius: 'var(--radius-md)',
-              border: `2px solid ${selectedType === 'google' ? 'var(--primary)' : 'var(--border-color)'}`,
-              background: selectedType === 'google' ? 'var(--badge-bg)' : 'transparent',
+              border: 'none',
+              background: activeTab === 'preset' ? 'var(--primary)' : 'transparent',
+              color: activeTab === 'preset' ? '#ffffff' : 'var(--text-muted)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.15s ease'
             }}
           >
-            <img
-              src={user.avatar.googleUrl}
-              alt="Google Profile"
-              style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
-            />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                Google Profile Picture
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Use verified photo from your Google account
-              </div>
+            TAPASYA Avatars
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('custom')}
+            style={{
+              padding: '0.45rem 0.9rem',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              background: activeTab === 'custom' ? 'var(--primary)' : 'transparent',
+              color: activeTab === 'custom' ? '#ffffff' : 'var(--text-muted)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Your Photo
+          </button>
+
+          {hasGooglePhoto && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('google')}
+              style={{
+                padding: '0.45rem 0.9rem',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                background: activeTab === 'google' ? 'var(--primary)' : 'transparent',
+                color: activeTab === 'google' ? '#ffffff' : 'var(--text-muted)',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Google Photo
+            </button>
+          )}
+        </div>
+
+        {/* Tab 1: TAPASYA Avatars Grid */}
+        {activeTab === 'preset' && (
+          <div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+                gap: '0.75rem',
+                maxHeight: '320px',
+                overflowY: 'auto',
+                paddingRight: '0.25rem'
+              }}
+            >
+              {PRESET_AVATARS.map((avatar) => {
+                const isSelected = selectedPresetId === avatar.id;
+                return (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => setSelectedPresetId(avatar.id)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      padding: '0.5rem 0.25rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: `2px solid ${isSelected ? 'var(--primary)' : 'transparent'}`,
+                      background: isSelected ? 'var(--badge-bg)' : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      outline: 'none',
+                      boxShadow: isSelected ? '0 0 0 2px rgba(99, 102, 241, 0.3)' : 'none'
+                    }}
+                    title={avatar.name}
+                  >
+                    <div
+                      style={{
+                        width: '46px',
+                        height: '46px',
+                        borderRadius: '50%',
+                        background: avatar.bgGradient,
+                        border: `1.5px solid ${avatar.borderColor}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '0.25rem',
+                        transition: 'transform 0.15s ease'
+                      }}
+                    >
+                      {avatar.renderIcon('#ffffff')}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: isSelected ? 700 : 500,
+                        color: isSelected ? 'var(--text-main)' : 'var(--text-dim)',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%'
+                      }}
+                    >
+                      {avatar.name}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            {selectedType === 'google' && (
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>✓ Selected</span>
+          </div>
+        )}
+
+        {/* Tab 2: Your Photo (Upload Device Photo) */}
+        {activeTab === 'custom' && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1.5rem 1rem',
+              border: '2px dashed var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--badge-bg)',
+              gap: '1rem',
+              textAlign: 'center'
+            }}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/jpeg,image/png,image/webp"
+              style={{ display: 'none' }}
+            />
+
+            {(customPreviewUrl || user?.avatar?.customUrl) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: '96px',
+                    height: '96px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    border: '3px solid var(--primary)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  }}
+                >
+                  <img
+                    src={customPreviewUrl || (user.avatar.customUrl.startsWith('http') ? user.avatar.customUrl : `http://localhost:5000${user.avatar.customUrl}`)}
+                    alt="Photo Preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+
+                {customFile && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {customFile.name} ({(customFile.size / 1024).toFixed(1)} KB)
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.85rem', padding: '0.45rem 1.15rem' }}
+                >
+                  Change Photo
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                  Select an image file from your device (JPG, PNG, WEBP — Max 5MB)
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-primary"
+                  style={{ fontSize: '0.875rem', padding: '0.55rem 1.5rem' }}
+                >
+                  Choose Photo
+                </button>
+              </>
             )}
           </div>
         )}
 
-        {/* TAPASYA Preset Avatars Section */}
-        <div>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-            TAPASYA Built-in Avatars
-          </div>
-
+        {/* Tab 3: Google Photo (If Available) */}
+        {activeTab === 'google' && hasGooglePhoto && (
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '0.85rem'
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1rem',
+              padding: '1.5rem',
+              background: 'var(--badge-bg)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-color)',
+              textAlign: 'center'
             }}
           >
-            {PRESET_AVATARS.map((avatar) => {
-              const isSelected = selectedType === 'preset' && selectedId === avatar.id;
-              return (
-                <button
-                  key={avatar.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedType('preset');
-                    setSelectedId(avatar.id);
-                  }}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0.6rem 0.3rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}`,
-                    background: isSelected ? 'var(--badge-bg)' : 'var(--bg-surface)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    boxShadow: isSelected ? '0 0 0 2px rgba(99, 102, 241, 0.2)' : 'none'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '50%',
-                      background: avatar.bgGradient,
-                      border: `1.5px solid ${avatar.borderColor}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '0.35rem'
-                    }}
-                  >
-                    {avatar.renderIcon('#ffffff')}
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: isSelected ? 700 : 500,
-                      color: isSelected ? 'var(--text-main)' : 'var(--text-muted)',
-                      textOverflow: 'ellipsis',
-                      overflow: 'hidden',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '100%'
-                    }}
-                  >
-                    {avatar.name}
-                  </span>
-                </button>
-              );
-            })}
+            <div
+              style={{
+                width: '88px',
+                height: '88px',
+                borderRadius: '50%',
+                overflow: 'hidden',
+                border: '3px solid var(--primary)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              }}
+            >
+              <img
+                src={user.avatar.googleUrl}
+                alt="Google Profile"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                Verified Google Profile Photo
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                Use your official Google account picture
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
+        {/* Actions Footer */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button
             type="button"
@@ -256,7 +466,7 @@ export const AvatarModal = ({ isOpen, onClose, onSave, user }) => {
             onClick={handleSave}
             disabled={saving}
             className="btn-primary"
-            style={{ padding: '0.55rem 1.4rem', fontSize: '0.875rem' }}
+            style={{ padding: '0.55rem 1.5rem', fontSize: '0.875rem' }}
           >
             {saving ? 'Saving...' : 'Save'}
           </button>

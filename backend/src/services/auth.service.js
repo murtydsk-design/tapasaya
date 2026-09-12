@@ -14,16 +14,27 @@ function generateToken(userId) {
 
 /**
  * Formats standard avatar payload object for user records.
+ * Priority order: custom_avatar_url > avatar_id > google_avatar_url > default avatar ('aarav')
  */
 function formatUserAvatar(userRow) {
   const googleUrl = userRow.google_avatar_url || null;
-  const type = userRow.avatar_type || (googleUrl ? 'google' : 'preset');
-  const id = userRow.avatar_id || 'avatar_01';
+  const customUrl = userRow.custom_avatar_url || null;
+  const type = userRow.avatar_type || (customUrl ? 'custom' : (googleUrl ? 'google' : 'preset'));
+  const id = userRow.avatar_id || 'aarav';
+
+  let activeUrl = id;
+  if (type === 'custom' && customUrl) {
+    activeUrl = customUrl;
+  } else if (type === 'google' && googleUrl) {
+    activeUrl = googleUrl;
+  }
+
   return {
     type,
     id,
     googleUrl,
-    url: type === 'google' && googleUrl ? googleUrl : id
+    customUrl,
+    url: activeUrl
   };
 }
 
@@ -51,8 +62,8 @@ async function registerUser({ name, email, password }) {
     // Insert User
     const userRes = await client.query(
       `INSERT INTO users (name, email, password_hash, avatar_type, avatar_id)
-       VALUES ($1, $2, $3, 'preset', 'avatar_01')
-       RETURNING id, name, email, created_at, google_avatar_url, avatar_type, avatar_id;`,
+       VALUES ($1, $2, $3, 'preset', 'aarav')
+       RETURNING id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id;`,
       [name, email, passwordHash]
     );
     const user = userRes.rows[0];
@@ -100,7 +111,7 @@ async function registerUser({ name, email, password }) {
 async function loginUser({ email, password }) {
   // Find user by email
   const userRes = await db.query(
-    'SELECT id, name, email, password_hash, created_at, google_avatar_url, avatar_type, avatar_id FROM users WHERE email = $1;',
+    'SELECT id, name, email, password_hash, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id FROM users WHERE email = $1;',
     [email]
   );
 
@@ -140,7 +151,7 @@ async function loginUser({ email, password }) {
  */
 async function getUserById(userId) {
   const userRes = await db.query(
-    'SELECT id, name, email, created_at, google_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;',
+    'SELECT id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;',
     [userId]
   );
 
@@ -201,7 +212,7 @@ async function googleLogin(idToken) {
 
   // 1. Check if user already exists
   const userRes = await db.query(
-    'SELECT id, name, email, created_at, google_avatar_url, avatar_type, avatar_id FROM users WHERE email = $1;',
+    'SELECT id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id FROM users WHERE email = $1;',
     [email]
   );
 
@@ -216,7 +227,7 @@ async function googleLogin(idToken) {
          SET google_avatar_url = $1,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $2
-         RETURNING id, name, email, created_at, google_avatar_url, avatar_type, avatar_id;`,
+         RETURNING id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id;`,
         [googlePicture, user.id]
       );
       user = updateRes.rows[0];
@@ -234,8 +245,8 @@ async function googleLogin(idToken) {
 
       const newUserRes = await client.query(
         `INSERT INTO users (name, email, password_hash, google_avatar_url, avatar_type, avatar_id)
-         VALUES ($1, $2, $3, $4, $5, 'avatar_01')
-         RETURNING id, name, email, created_at, google_avatar_url, avatar_type, avatar_id;`,
+         VALUES ($1, $2, $3, $4, $5, 'aarav')
+         RETURNING id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id;`,
         [name, email, passwordHash, googlePicture, initialAvatarType]
       );
       user = newUserRes.rows[0];

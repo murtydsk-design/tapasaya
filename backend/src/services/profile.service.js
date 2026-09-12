@@ -12,7 +12,7 @@ async function getUserProfile(userId, page = 1, limit = 10) {
   const userCharRes = await db.query(
     `SELECT 
        u.id AS user_id, u.name, u.email, u.created_at AS user_created_at,
-       u.google_avatar_url, u.avatar_type, u.avatar_id,
+       u.google_avatar_url, u.custom_avatar_url, u.avatar_type, u.avatar_id,
        c.level, c.total_xp, c.gold, c.strength, c.intellect, c.focus, c.knowledge, c.discipline
      FROM users u
      LEFT JOIN characters c ON c.user_id = u.id
@@ -184,13 +184,16 @@ async function getUserProfile(userId, page = 1, limit = 10) {
 }
 
 /**
- * Updates user avatar selection (preset avatar or verified Google photo).
+ * Updates user avatar selection (preset, custom upload photo, or verified Google photo).
  */
-async function updateUserAvatar(userId, { avatar_type, avatar_id }) {
-  const validTypes = ['preset', 'google'];
+async function updateUserAvatar(userId, { avatar_type, avatar_id, custom_url }) {
+  const validTypes = ['preset', 'custom', 'google'];
   const type = validTypes.includes(avatar_type) ? avatar_type : 'preset';
 
-  const userRes = await db.query('SELECT id, name, email, created_at, google_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;', [userId]);
+  const userRes = await db.query(
+    'SELECT id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;',
+    [userId]
+  );
   if (userRes.rows.length === 0) {
     const error = new Error('User account not found.');
     error.statusCode = 404;
@@ -205,17 +208,31 @@ async function updateUserAvatar(userId, { avatar_type, avatar_id }) {
     throw error;
   }
 
-  const validPresets = ['avatar_01', 'avatar_02', 'avatar_03', 'avatar_04', 'avatar_05', 'avatar_06', 'avatar_07', 'avatar_08'];
-  const selectedId = validPresets.includes(avatar_id) ? avatar_id : (existingUser.avatar_id || 'avatar_01');
+  if (type === 'custom' && !custom_url && !existingUser.custom_avatar_url) {
+    const error = new Error('No custom photo uploaded yet.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const selectedCustomUrl = custom_url || existingUser.custom_avatar_url || null;
+
+  const validPresets = [
+    'aarav', 'ira', 'kian', 'meera', 'rohan', 'tara', 'vivaan', 'anaya', 'dev', 'sana',
+    'arjun', 'kiara', 'reyansh', 'nisha', 'kabir', 'diya', 'advait', 'zara', 'neil', 'piya',
+    'sam', 'lavanya', 'ishaan',
+    'avatar_01', 'avatar_02', 'avatar_03', 'avatar_04', 'avatar_05', 'avatar_06', 'avatar_07', 'avatar_08'
+  ];
+  const selectedId = validPresets.includes(avatar_id) ? avatar_id : (existingUser.avatar_id || 'aarav');
 
   const updateRes = await db.query(
     `UPDATE users
      SET avatar_type = $1,
          avatar_id = $2,
+         custom_avatar_url = COALESCE($3, custom_avatar_url),
          updated_at = CURRENT_TIMESTAMP
-     WHERE id = $3
-     RETURNING id, name, email, created_at, google_avatar_url, avatar_type, avatar_id;`,
-    [type, selectedId, userId]
+     WHERE id = $4
+     RETURNING id, name, email, created_at, google_avatar_url, custom_avatar_url, avatar_type, avatar_id;`,
+    [type, selectedId, selectedCustomUrl, userId]
   );
 
   const updatedRow = updateRes.rows[0];

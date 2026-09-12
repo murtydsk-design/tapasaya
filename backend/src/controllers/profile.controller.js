@@ -26,9 +26,20 @@ exports.getProfile = async (req, res, next) => {
 exports.updateAvatar = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { avatar_type, avatar_id } = req.body;
+    let avatar_type = req.body?.avatar_type;
+    let avatar_id = req.body?.avatar_id;
+    let custom_url = req.body?.custom_url;
 
-    const updatedUser = await profileService.updateUserAvatar(userId, { avatar_type, avatar_id });
+    if (req.file) {
+      avatar_type = 'custom';
+      custom_url = `/uploads/avatars/${req.file.filename}`;
+    }
+
+    const updatedUser = await profileService.updateUserAvatar(userId, {
+      avatar_type,
+      avatar_id,
+      custom_url
+    });
 
     return res.status(200).json({
       success: true,

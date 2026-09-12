@@ -8,15 +8,27 @@ const SIZES = {
   xl: 96
 };
 
+const BACKEND_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:5000';
+
 export const Avatar = ({ user, size = 'md', style = {}, className = '' }) => {
   const [imgError, setImgError] = useState(false);
   const dimension = typeof size === 'number' ? size : SIZES[size] || 40;
 
   const avatarInfo = user?.avatar || {};
-  const isGoogleType = avatarInfo.type === 'google' && avatarInfo.googleUrl && !imgError;
-  const preset = getPresetAvatar(avatarInfo.id || 'avatar_01');
+  const preset = getPresetAvatar(avatarInfo.id || 'aarav');
 
-  if (isGoogleType) {
+  // Custom photo
+  const rawCustomUrl = avatarInfo.customUrl || (avatarInfo.type === 'custom' ? avatarInfo.url : null);
+  const customUrl = rawCustomUrl && !rawCustomUrl.startsWith('http') && !rawCustomUrl.startsWith('blob:')
+    ? `${BACKEND_URL}${rawCustomUrl}`
+    : rawCustomUrl;
+
+  const isCustomType = avatarInfo.type === 'custom' && customUrl && !imgError;
+  const isGoogleType = avatarInfo.type === 'google' && avatarInfo.googleUrl && !imgError;
+
+  const photoSrc = isCustomType ? customUrl : (isGoogleType ? avatarInfo.googleUrl : null);
+
+  if (photoSrc) {
     return (
       <div
         className={`avatar-circle ${className}`}
@@ -38,7 +50,7 @@ export const Avatar = ({ user, size = 'md', style = {}, className = '' }) => {
         }}
       >
         <img
-          src={avatarInfo.googleUrl}
+          src={photoSrc}
           alt={user?.name || 'Profile Avatar'}
           onError={() => setImgError(true)}
           style={{
@@ -72,7 +84,7 @@ export const Avatar = ({ user, size = 'md', style = {}, className = '' }) => {
         userSelect: 'none',
         ...style
       }}
-      title={`${preset.name} - ${preset.title}`}
+      title={preset.name}
     >
       {preset.renderIcon('#ffffff')}
     </div>
