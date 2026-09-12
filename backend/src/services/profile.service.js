@@ -216,8 +216,13 @@ async function updateUserAvatar(userId, { avatar_type, avatar_id, custom_url }) 
 
   const selectedCustomUrl = custom_url || existingUser.custom_avatar_url || null;
 
-  const validPresets = Array.from({ length: 24 }, (_, i) => `avatar_${String(i + 1).padStart(2, '0')}`);
-  const selectedId = validPresets.includes(avatar_id) ? avatar_id : (existingUser.avatar_id || 'avatar_01');
+  const validPresets = [
+    'avatar_01', 'avatar_02', 'avatar_03', 'avatar_04',
+    'avatar_05', 'avatar_06', 'avatar_07', 'avatar_08',
+    'avatar_09', 'avatar_10', 'avatar_11', 'avatar_12',
+    'avatar_15', 'avatar_16', 'avatar_17', 'avatar_20'
+  ];
+  const selectedId = validPresets.includes(avatar_id) ? avatar_id : 'avatar_01';
 
   const updateRes = await db.query(
     `UPDATE users
