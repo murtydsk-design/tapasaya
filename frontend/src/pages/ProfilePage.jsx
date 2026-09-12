@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import profileApi from '../services/profileApi';
+import { useAuth } from '../hooks/useAuth';
+import { Avatar } from '../components/Avatar';
+import { AvatarModal } from '../components/AvatarModal';
 
 export const ProfilePage = () => {
+  const { updateUser } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [allCompletions, setAllCompletions] = useState([]);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   const fetchProfile = useCallback(async (pageNum = 1, isLoadMore = false) => {
     try {
@@ -40,6 +45,14 @@ export const ProfilePage = () => {
   useEffect(() => {
     fetchProfile(1);
   }, [fetchProfile]);
+
+  const handleSaveAvatar = async (avatarType, avatarId) => {
+    const res = await profileApi.updateAvatar(avatarType, avatarId);
+    if (res.success && res.data?.user) {
+      updateUser(res.data.user);
+      setProfileData(prev => prev ? { ...prev, user: { ...prev.user, avatar: res.data.user.avatar } } : prev);
+    }
+  };
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
@@ -92,34 +105,37 @@ export const ProfilePage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Profile Header */}
+      {/* Profile Header & Avatar Card */}
       <div className="glass-panel" style={{
-        padding: '1.75rem 2rem',
+        padding: '2rem',
         display: 'flex',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
         alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '1.25rem'
+        textAlign: 'center',
+        gap: '1rem'
       }}>
+        <Avatar user={user} size={96} />
+
         <div>
-          <h1 style={{ fontSize: '1.75rem', color: 'var(--text-main)', fontWeight: 700 }}>
+          <h1 style={{ fontSize: '1.75rem', color: 'var(--text-main)', fontWeight: 700, margin: 0 }}>
             {user?.name || 'User Profile'}
           </h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+          <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginTop: '0.2rem', marginBottom: 0 }}>
+            {user?.email}
+          </p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
             Member since {formatMemberDate(user?.createdAt)}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
-          <div>
-            <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', fontWeight: 600 }}>Email</div>
-            <div style={{ color: 'var(--text-main)', fontWeight: 500, marginTop: '0.1rem' }}>{user?.email}</div>
-          </div>
-          <div>
-            <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', fontWeight: 600 }}>Joined</div>
-            <div style={{ color: 'var(--text-main)', fontWeight: 500, marginTop: '0.1rem' }}>{formatDate(user?.createdAt)}</div>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowAvatarModal(true)}
+          className="btn-secondary"
+          style={{ padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 500 }}
+        >
+          Change Avatar
+        </button>
       </div>
 
       {/* Progress & Stats Row */}
@@ -395,6 +411,13 @@ export const ProfilePage = () => {
           </div>
         )}
       </div>
+
+      <AvatarModal
+        isOpen={showAvatarModal}
+        onClose={() => setShowAvatarModal(false)}
+        onSave={handleSaveAvatar}
+        user={user}
+      />
     </div>
   );
 };

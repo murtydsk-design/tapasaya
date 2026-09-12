@@ -129,7 +129,11 @@ Stores authentication and basic user information.
 | id | UUID | PRIMARY KEY | Unique user ID |
 | name | VARCHAR(100) | NOT NULL | User's name |
 | email | VARCHAR(255) | NOT NULL, UNIQUE | User email |
-| password_hash | TEXT | NOT NULL | Hashed password |
+| password_hash | TEXT | NULLABLE | Hashed password (NULL for Google OAuth users) |
+| google_id | VARCHAR(255) | NULLABLE, UNIQUE | Google OAuth subject ID |
+| google_avatar_url | VARCHAR(500) | NULLABLE | Verified Google profile picture URL |
+| avatar_type | VARCHAR(20) | DEFAULT 'preset' | Avatar source type ('preset' or 'google') |
+| avatar_id | VARCHAR(50) | DEFAULT 'avatar_01' | Built-in TAPASYA preset avatar ID ('avatar_01'...'avatar_08') |
 | created_at | TIMESTAMPTZ | NOT NULL | Account creation time |
 | updated_at | TIMESTAMPTZ | NOT NULL | Last update time |
 

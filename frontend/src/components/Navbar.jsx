@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useRpg } from '../hooks/useRpg';
 import { useTheme } from '../hooks/useTheme';
 import { LogoutModal } from './LogoutModal';
+import { Avatar } from './Avatar';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
@@ -134,12 +135,12 @@ export const Navbar = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.35rem',
+                  gap: '0.45rem',
                   background: dropdownOpen ? 'var(--badge-bg)' : 'transparent',
                   border: '1px solid',
                   borderColor: dropdownOpen ? 'var(--primary)' : 'transparent',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '0.35rem 0.65rem',
+                  borderRadius: 'var(--radius-full)',
+                  padding: '0.25rem 0.65rem 0.25rem 0.35rem',
                   fontSize: '0.875rem',
                   fontWeight: 500,
                   color: 'var(--text-main)',
@@ -147,6 +148,7 @@ export const Navbar = () => {
                   transition: 'all 0.15s ease'
                 }}
               >
+                <Avatar user={user} size={28} />
                 <span>{user.name}</span>
                 <svg
                   width="12"
@@ -174,7 +176,7 @@ export const Navbar = () => {
                     position: 'absolute',
                     right: 0,
                     top: 'calc(100% + 0.5rem)',
-                    width: '170px',
+                    width: '190px',
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-md)',
@@ -185,9 +187,17 @@ export const Navbar = () => {
                     flexDirection: 'column'
                   }}
                 >
-                  <div style={{ padding: '0.45rem 0.85rem', borderBottom: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {user.name}
+                  <div style={{ padding: '0.6rem 0.85rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <Avatar user={user} size={36} />
+                    <div style={{ overflow: 'hidden' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {user.name}
+                      </div>
+                      {user.email && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {user.email}
+                        </div>
+                      )}
                     </div>
                   </div>
 

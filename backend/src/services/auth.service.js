@@ -13,6 +13,21 @@ function generateToken(userId) {
 }
 
 /**
+ * Formats standard avatar payload object for user records.
+ */
+function formatUserAvatar(userRow) {
+  const googleUrl = userRow.google_avatar_url || null;
+  const type = userRow.avatar_type || (googleUrl ? 'google' : 'preset');
+  const id = userRow.avatar_id || 'avatar_01';
+  return {
+    type,
+    id,
+    googleUrl,
+    url: type === 'google' && googleUrl ? googleUrl : id
+  };
+}
+
+/**
  * Registers a new user executing an atomic database transaction.
  * Creates users record, character starting state, and streak record in one transaction.
  */
@@ -35,9 +50,9 @@ async function registerUser({ name, email, password }) {
 
     // Insert User
     const userRes = await client.query(
-      `INSERT INTO users (name, email, password_hash)
-       VALUES ($1, $2, $3)
-       RETURNING id, name, email, created_at;`,
+      `INSERT INTO users (name, email, password_hash, avatar_type, avatar_id)
+       VALUES ($1, $2, $3, 'preset', 'avatar_01')
+       RETURNING id, name, email, created_at, google_avatar_url, avatar_type, avatar_id;`,
       [name, email, passwordHash]
     );
     const user = userRes.rows[0];
@@ -66,7 +81,8 @@ async function registerUser({ name, email, password }) {
         id: user.id,
         name: user.name,
         email: user.email,
-        created_at: user.created_at
+        created_at: user.created_at,
+        avatar: formatUserAvatar(user)
       },
       token
     };
@@ -84,7 +100,7 @@ async function registerUser({ name, email, password }) {
 async function loginUser({ email, password }) {
   // Find user by email
   const userRes = await db.query(
-    'SELECT id, name, email, password_hash, created_at FROM users WHERE email = $1;',
+    'SELECT id, name, email, password_hash, created_at, google_avatar_url, avatar_type, avatar_id FROM users WHERE email = $1;',
     [email]
   );
 
@@ -112,7 +128,8 @@ async function loginUser({ email, password }) {
       id: user.id,
       name: user.name,
       email: user.email,
-      created_at: user.created_at
+      created_at: user.created_at,
+      avatar: formatUserAvatar(user)
     },
     token
   };
@@ -123,7 +140,7 @@ async function loginUser({ email, password }) {
  */
 async function getUserById(userId) {
   const userRes = await db.query(
-    'SELECT id, name, email, created_at FROM users WHERE id = $1;',
+    'SELECT id, name, email, created_at, google_avatar_url, avatar_type, avatar_id FROM users WHERE id = $1;',
     [userId]
   );
 
@@ -133,7 +150,14 @@ async function getUserById(userId) {
     throw error;
   }
 
-  return userRes.rows[0];
+  const user = userRes.rows[0];
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    created_at: user.created_at,
+    avatar: formatUserAvatar(user)
+  };
 }
 
 /**
@@ -173,10 +197,11 @@ async function googleLogin(idToken) {
 
   const email = payload.email.trim().toLowerCase();
   const name = payload.name || email.split('@')[0];
+  const googlePicture = payload.picture || null;
 
   // 1. Check if user already exists
   const userRes = await db.query(
-    'SELECT id, name, email, created_at FROM users WHERE email = $1;',
+    'SELECT id, name, email, created_at, google_avatar_url, avatar_type, avatar_id FROM users WHERE email = $1;',
     [email]
   );
 
@@ -184,21 +209,34 @@ async function googleLogin(idToken) {
 
   if (userRes.rows.length > 0) {
     user = userRes.rows[0];
+    // Update google_avatar_url if provided and different
+    if (googlePicture && user.google_avatar_url !== googlePicture) {
+      const updateRes = await db.query(
+        `UPDATE users
+         SET google_avatar_url = $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING id, name, email, created_at, google_avatar_url, avatar_type, avatar_id;`,
+        [googlePicture, user.id]
+      );
+      user = updateRes.rows[0];
+    }
   } else {
     // 2. Create new user account safely
     const crypto = require('crypto');
     const randomPassword = crypto.randomBytes(32).toString('hex');
     const passwordHash = await bcrypt.hash(randomPassword, 10);
+    const initialAvatarType = googlePicture ? 'google' : 'preset';
 
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
       const newUserRes = await client.query(
-        `INSERT INTO users (name, email, password_hash)
-         VALUES ($1, $2, $3)
-         RETURNING id, name, email, created_at;`,
-        [name, email, passwordHash]
+        `INSERT INTO users (name, email, password_hash, google_avatar_url, avatar_type, avatar_id)
+         VALUES ($1, $2, $3, $4, $5, 'avatar_01')
+         RETURNING id, name, email, created_at, google_avatar_url, avatar_type, avatar_id;`,
+        [name, email, passwordHash, googlePicture, initialAvatarType]
       );
       user = newUserRes.rows[0];
 
@@ -232,7 +270,8 @@ async function googleLogin(idToken) {
       id: user.id,
       name: user.name,
       email: user.email,
-      created_at: user.created_at
+      created_at: user.created_at,
+      avatar: formatUserAvatar(user)
     },
     token
   };
@@ -243,5 +282,6 @@ module.exports = {
   loginUser,
   googleLogin,
   getUserById,
-  generateToken
+  generateToken,
+  formatUserAvatar
 };
