@@ -7,8 +7,7 @@ export const Sidebar = () => {
     { path: '/quests', label: 'Quests' },
     { path: '/character', label: 'Character' },
     { path: '/rewards', label: 'Rewards' },
-    { path: '/inventory', label: 'Inventory' },
-    { path: '/profile', label: 'Profile' }
+    { path: '/inventory', label: 'Inventory' }
   ];
 
   return (
