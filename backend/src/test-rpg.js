@@ -154,8 +154,11 @@ async function testRPGEngineSuite() {
     console.log('  ✅ Same-day multiple completions do NOT increment streak (current_streak remains 1).');
 
     console.log('\n[Test 9/35] Testing Streak consecutive day completion (+1 streak, best_streak = 2)...');
-    // Simulate tomorrow completion via internal service helper
-    const tomorrowStr = '2026-09-13';
+    // Dynamically calculate tomorrow relative to today's date
+    const todayObj = new Date();
+    const tomorrowObj = new Date(todayObj);
+    tomorrowObj.setDate(todayObj.getDate() + 1);
+    const tomorrowStr = tomorrowObj.toISOString().split('T')[0];
     const tomorrowQ = await makeRequest('/api/quests', 'POST', { title: 'Tomorrow Task', category: 'FITNESS', difficulty: 'EASY' }, userAToken);
     const tomC = await questService.completeQuest(userAId, tomorrowQ.body.data.id, tomorrowStr);
     if (tomC.streak.current_streak !== 2 || tomC.streak.best_streak !== 2) {
@@ -164,8 +167,10 @@ async function testRPGEngineSuite() {
     console.log('  ✅ Consecutive calendar day completion incremented streak to 2 (best_streak = 2).');
 
     console.log('\n[Test 10/35] Testing Streak missed day reset (resets to 1, preserves best_streak = 2)...');
-    // Simulate completing quest 3 days later (missed day)
-    const missedDateStr = '2026-09-16';
+    // Dynamically calculate missed date relative to today's date (3 days after tomorrow)
+    const missedObj = new Date(todayObj);
+    missedObj.setDate(todayObj.getDate() + 4);
+    const missedDateStr = missedObj.toISOString().split('T')[0];
     const missedQ = await makeRequest('/api/quests', 'POST', { title: 'Missed Day Task', category: 'FITNESS', difficulty: 'EASY' }, userAToken);
     const missedC = await questService.completeQuest(userAId, missedQ.body.data.id, missedDateStr);
     if (missedC.streak.current_streak !== 1 || missedC.streak.best_streak !== 2) {
