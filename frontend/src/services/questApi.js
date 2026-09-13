@@ -29,6 +29,31 @@ export const questApi = {
   completeQuest: async (id) => {
     const response = await api.post(`/quests/${id}/complete`);
     return response.data;
+  },
+
+  startTimer: async (id) => {
+    const response = await api.post(`/quests/${id}/timer/start`);
+    return response.data;
+  },
+
+  pauseTimer: async (id) => {
+    const response = await api.post(`/quests/${id}/timer/pause`);
+    return response.data;
+  },
+
+  resumeTimer: async (id) => {
+    const response = await api.post(`/quests/${id}/timer/resume`);
+    return response.data;
+  },
+
+  resetTimer: async (id) => {
+    const response = await api.post(`/quests/${id}/timer/reset`);
+    return response.data;
+  },
+
+  getTimer: async (id) => {
+    const response = await api.get(`/quests/${id}/timer`);
+    return response.data;
   }
 };
 

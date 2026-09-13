@@ -153,3 +153,127 @@ exports.completeQuest = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * Starts quest timer: POST /api/quests/:id/timer/start
+ */
+exports.startTimer = async (req, res, next) => {
+  try {
+    const idValidation = questValidator.validateQuestId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: idValidation.message
+      });
+    }
+
+    const quest = await questService.startTimer(req.user.id, req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Timer started successfully.',
+      data: quest
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Pauses quest timer: POST /api/quests/:id/timer/pause
+ */
+exports.pauseTimer = async (req, res, next) => {
+  try {
+    const idValidation = questValidator.validateQuestId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: idValidation.message
+      });
+    }
+
+    const quest = await questService.pauseTimer(req.user.id, req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Timer paused successfully.',
+      data: quest
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Resumes quest timer: POST /api/quests/:id/timer/resume
+ */
+exports.resumeTimer = async (req, res, next) => {
+  try {
+    const idValidation = questValidator.validateQuestId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: idValidation.message
+      });
+    }
+
+    const quest = await questService.resumeTimer(req.user.id, req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Timer resumed successfully.',
+      data: quest
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Resets quest timer: POST /api/quests/:id/timer/reset
+ */
+exports.resetTimer = async (req, res, next) => {
+  try {
+    const idValidation = questValidator.validateQuestId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: idValidation.message
+      });
+    }
+
+    const quest = await questService.resetTimer(req.user.id, req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Timer reset successfully.',
+      data: quest
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Retrieves quest timer state: GET /api/quests/:id/timer
+ */
+exports.getTimer = async (req, res, next) => {
+  try {
+    const idValidation = questValidator.validateQuestId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: idValidation.message
+      });
+    }
+
+    const quest = await questService.getQuestById(req.user.id, req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      data: quest.timer
+    });
+  } catch (err) {
+    next(err);
+  }
+};

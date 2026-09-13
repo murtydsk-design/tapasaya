@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRpg } from '../hooks/useRpg';
+import questApi from '../services/questApi';
 
 const CATEGORY_META = {
   FITNESS: { attribute: 'Strength', colorClass: 'badge-fitness', label: 'Fitness' },
@@ -10,9 +11,10 @@ const CATEGORY_META = {
 };
 
 export const QuestCard = ({ quest, onEdit, onDelete }) => {
-  const { completeQuestAndCheckLevelUp, showToast } = useRpg();
+  const { completeQuestAndCheckLevelUp, showToast, refreshRpgData } = useRpg();
   const [completing, setCompleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [timerBusy, setTimerBusy] = useState(false);
 
   const meta = CATEGORY_META[quest.category] || { attribute: 'Attribute', colorClass: '', label: quest.category };
   const isDaily = quest.type === 'DAILY';
@@ -31,6 +33,34 @@ export const QuestCard = ({ quest, onEdit, onDelete }) => {
     ? (isCompletedToday || isOutsideActiveRange)
     : isPermanentlyCompleted;
 
+  const hasTimer = quest.timer_option && quest.timer_option !== 'NONE';
+  const timerStatus = quest.timer_status || 'STOPPED';
+  const remainingSeconds = quest.timer_remaining_seconds;
+
+  const [displayRemaining, setDisplayRemaining] = useState(remainingSeconds);
+
+  useEffect(() => {
+    setDisplayRemaining(remainingSeconds);
+  }, [remainingSeconds, quest.updated_at, timerStatus]);
+
+  useEffect(() => {
+    if (timerStatus !== 'RUNNING' || displayRemaining === null || displayRemaining === undefined || displayRemaining <= 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setDisplayRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timerStatus, quest.timer_started_at]);
+
   const formatDate = (dateStr) => {
     if (!dateStr) return 'One-Day';
     try {
@@ -38,6 +68,77 @@ export const QuestCard = ({ quest, onEdit, onDelete }) => {
       return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
     } catch (e) {
       return dateStr;
+    }
+  };
+
+  const formatTimerLabel = (option) => {
+    if (option === '1_HOUR') return '1 Hour';
+    if (option === '2_HOURS') return '2 Hours';
+    if (option === 'FULL_DAY') return 'Full Day';
+    return option;
+  };
+
+  const formatTimeDisplay = (totalSecs) => {
+    if (totalSecs === null || totalSecs === undefined) return '';
+    if (totalSecs <= 0) return "Time's up";
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+    if (hours > 0) {
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} remaining`;
+    }
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} remaining`;
+  };
+
+  const handleStartTimer = async () => {
+    if (timerBusy) return;
+    setTimerBusy(true);
+    try {
+      await questApi.startTimer(quest.id);
+      await refreshRpgData();
+    } catch (err) {
+      showToast(err.message || 'Failed to start timer.', 'error');
+    } finally {
+      setTimerBusy(false);
+    }
+  };
+
+  const handlePauseTimer = async () => {
+    if (timerBusy) return;
+    setTimerBusy(true);
+    try {
+      await questApi.pauseTimer(quest.id);
+      await refreshRpgData();
+    } catch (err) {
+      showToast(err.message || 'Failed to pause timer.', 'error');
+    } finally {
+      setTimerBusy(false);
+    }
+  };
+
+  const handleResumeTimer = async () => {
+    if (timerBusy) return;
+    setTimerBusy(true);
+    try {
+      await questApi.resumeTimer(quest.id);
+      await refreshRpgData();
+    } catch (err) {
+      showToast(err.message || 'Failed to resume timer.', 'error');
+    } finally {
+      setTimerBusy(false);
+    }
+  };
+
+  const handleResetTimer = async () => {
+    if (timerBusy) return;
+    setTimerBusy(true);
+    try {
+      await questApi.resetTimer(quest.id);
+      await refreshRpgData();
+    } catch (err) {
+      showToast(err.message || 'Failed to reset timer.', 'error');
+    } finally {
+      setTimerBusy(false);
     }
   };
 
@@ -140,6 +241,98 @@ export const QuestCard = ({ quest, onEdit, onDelete }) => {
               Best: {bestStreak} {bestStreak === 1 ? 'day' : 'days'}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Quest Timer Section */}
+      {hasTimer && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.4rem',
+          padding: '0.65rem 0.75rem',
+          background: 'var(--badge-bg)',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-color)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+              Timer ({formatTimerLabel(quest.timer_option)})
+            </span>
+            <span style={{
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              color: (displayRemaining === 0 || quest.is_expired) ? 'var(--rose)' : timerStatus === 'RUNNING' ? 'var(--cyan)' : 'var(--text-main)'
+            }}>
+              {timerStatus === 'STOPPED'
+                ? formatTimerLabel(quest.timer_option)
+                : formatTimeDisplay(displayRemaining)}
+            </span>
+          </div>
+
+          {/* Timer Controls */}
+          <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
+            {timerStatus === 'STOPPED' && (
+              <button
+                onClick={handleStartTimer}
+                disabled={timerBusy || isDisabledFromCompleting}
+                className="btn-secondary"
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              >
+                Start Timer
+              </button>
+            )}
+            {timerStatus === 'RUNNING' && displayRemaining > 0 && (
+              <>
+                <button
+                  onClick={handlePauseTimer}
+                  disabled={timerBusy}
+                  className="btn-secondary"
+                  style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                >
+                  Pause
+                </button>
+                <button
+                  onClick={handleResetTimer}
+                  disabled={timerBusy}
+                  className="btn-secondary"
+                  style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                >
+                  Reset
+                </button>
+              </>
+            )}
+            {timerStatus === 'PAUSED' && displayRemaining > 0 && (
+              <>
+                <button
+                  onClick={handleResumeTimer}
+                  disabled={timerBusy}
+                  className="btn-primary"
+                  style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                >
+                  Resume
+                </button>
+                <button
+                  onClick={handleResetTimer}
+                  disabled={timerBusy}
+                  className="btn-secondary"
+                  style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                >
+                  Reset
+                </button>
+              </>
+            )}
+            {(displayRemaining === 0 || quest.is_expired) && (
+              <button
+                onClick={handleResetTimer}
+                disabled={timerBusy}
+                className="btn-secondary"
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
       )}
 

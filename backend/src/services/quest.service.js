@@ -3,44 +3,150 @@ const { DIFFICULTY_REWARDS, CATEGORY_ATTRIBUTE_MAP } = require('../utils/rpg.con
 const rpgService = require('./rpg.service');
 
 /**
- * Helper to format quest database row with individual streak data.
+ * Calculates initial duration in seconds for a timer option.
+ */
+function getInitialTimerDuration(timerOption) {
+  if (timerOption === '1_HOUR') return 3600;
+  if (timerOption === '2_HOURS') return 7200;
+  if (timerOption === 'FULL_DAY') {
+    const now = new Date();
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    return Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000));
+  }
+  return null;
+}
+
+/**
+ * Calculates current timer state dynamically from row values.
+ * Handles Daily Quest calendar day rollover and Full Day remaining seconds.
+ */
+function calculateTimerState(row, currentDateStr = null) {
+  const timerOption = row.timer_option || 'NONE';
+  if (timerOption === 'NONE') {
+    return {
+      timer_option: 'NONE',
+      timer_status: 'STOPPED',
+      timer_duration_seconds: null,
+      timer_remaining_seconds: null,
+      timer_started_at: null,
+      timer_paused_at: null,
+      is_expired: false
+    };
+  }
+
+  const todayStr = currentDateStr || new Date().toISOString().substring(0, 10);
+  const isDaily = row.type === 'DAILY';
+  const rowCurrentDay = row.timer_current_day
+    ? (typeof row.timer_current_day === 'string' ? row.timer_current_day.substring(0, 10) : new Date(row.timer_current_day).toISOString().substring(0, 10))
+    : null;
+
+  const initDuration = getInitialTimerDuration(timerOption);
+
+  // Rollover check for DAILY quests: If stored timer_current_day is before todayStr and timer was not started within the last 24h
+  const startedRecently = row.timer_started_at && (Date.now() - new Date(row.timer_started_at).getTime() < 24 * 3600 * 1000);
+  if (isDaily && rowCurrentDay && rowCurrentDay < todayStr && !startedRecently) {
+    return {
+      timer_option: timerOption,
+      timer_status: 'STOPPED',
+      timer_duration_seconds: initDuration,
+      timer_remaining_seconds: initDuration,
+      timer_started_at: null,
+      timer_paused_at: null,
+      is_expired: false
+    };
+  }
+
+  const rawStatus = row.timer_status || 'STOPPED';
+  const durationSeconds = row.timer_duration_seconds !== null && row.timer_duration_seconds !== undefined
+    ? row.timer_duration_seconds
+    : initDuration;
+
+  if (rawStatus === 'STOPPED') {
+    const remSeconds = row.timer_remaining_seconds !== null && row.timer_remaining_seconds !== undefined
+      ? row.timer_remaining_seconds
+      : durationSeconds;
+    return {
+      timer_option: timerOption,
+      timer_status: 'STOPPED',
+      timer_duration_seconds: durationSeconds,
+      timer_remaining_seconds: remSeconds,
+      timer_started_at: null,
+      timer_paused_at: null,
+      is_expired: false
+    };
+  }
+
+  if (rawStatus === 'PAUSED') {
+    const remSeconds = row.timer_remaining_seconds !== null && row.timer_remaining_seconds !== undefined
+      ? row.timer_remaining_seconds
+      : durationSeconds;
+    const isExpired = remSeconds <= 0;
+    return {
+      timer_option: timerOption,
+      timer_status: isExpired ? 'EXPIRED' : 'PAUSED',
+      timer_duration_seconds: durationSeconds,
+      timer_remaining_seconds: Math.max(0, remSeconds),
+      timer_started_at: row.timer_started_at,
+      timer_paused_at: row.timer_paused_at,
+      is_expired: isExpired
+    };
+  }
+
+  if (rawStatus === 'RUNNING') {
+    if (!row.timer_started_at) {
+      return {
+        timer_option: timerOption,
+        timer_status: 'STOPPED',
+        timer_duration_seconds: durationSeconds,
+        timer_remaining_seconds: durationSeconds,
+        timer_started_at: null,
+        timer_paused_at: null,
+        is_expired: false
+      };
+    }
+
+    const startedTime = new Date(row.timer_started_at).getTime();
+    const nowTime = Date.now();
+    const elapsedSeconds = Math.floor((nowTime - startedTime) / 1000);
+    const baseRemaining = row.timer_remaining_seconds !== null && row.timer_remaining_seconds !== undefined
+      ? row.timer_remaining_seconds
+      : durationSeconds;
+
+    const remaining = Math.max(0, baseRemaining - elapsedSeconds);
+    const isExpired = remaining <= 0;
+
+    return {
+      timer_option: timerOption,
+      timer_status: isExpired ? 'EXPIRED' : 'RUNNING',
+      timer_duration_seconds: durationSeconds,
+      timer_remaining_seconds: remaining,
+      timer_started_at: row.timer_started_at,
+      timer_paused_at: null,
+      is_expired: isExpired
+    };
+  }
+
+  return {
+    timer_option: timerOption,
+    timer_status: 'STOPPED',
+    timer_duration_seconds: durationSeconds,
+    timer_remaining_seconds: durationSeconds,
+    timer_started_at: null,
+    timer_paused_at: null,
+    is_expired: false
+  };
+}
+
+/**
+ * Helper to format quest database row with individual streak & timer data.
  */
 function formatQuestRow(row, currentDate = null) {
   const isDaily = row.type === 'DAILY';
   const isCompletedToday = Boolean(row.is_completed_today);
+  const timerState = calculateTimerState(row, currentDate);
 
-  if (!isDaily) {
-    return {
-      id: row.id,
-      user_id: row.user_id,
-      title: row.title,
-      description: row.description,
-      category: row.category,
-      difficulty: row.difficulty,
-      type: row.type,
-      quest_date: row.quest_date ? row.quest_date.toISOString().substring(0, 10) : null,
-      start_date: row.start_date ? row.start_date.toISOString().substring(0, 10) : null,
-      end_date: row.end_date ? row.end_date.toISOString().substring(0, 10) : null,
-      xp_reward: row.xp_reward,
-      gold_reward: row.gold_reward,
-      status: row.status,
-      created_at: row.created_at,
-      completed_at: row.completed_at,
-      updated_at: row.updated_at,
-      is_completed_today: isCompletedToday,
-      completedToday: isCompletedToday,
-      streak: null
-    };
-  }
-
-  const effStreak = rpgService.getEffectiveIndividualStreak(
-    row.dqs_last_completed_date,
-    row.dqs_current_streak,
-    row.dqs_best_streak,
-    currentDate
-  );
-
-  return {
+  const baseQuest = {
     id: row.id,
     user_id: row.user_id,
     title: row.title,
@@ -59,6 +165,30 @@ function formatQuestRow(row, currentDate = null) {
     updated_at: row.updated_at,
     is_completed_today: isCompletedToday,
     completedToday: isCompletedToday,
+    timer_option: timerState.timer_option,
+    timer_duration_seconds: timerState.timer_duration_seconds,
+    timer_status: timerState.timer_status,
+    timer_started_at: timerState.timer_started_at,
+    timer_paused_at: timerState.timer_paused_at,
+    timer_remaining_seconds: timerState.timer_remaining_seconds,
+    is_expired: timerState.is_expired,
+    timer: timerState,
+    streak: null
+  };
+
+  if (!isDaily) {
+    return baseQuest;
+  }
+
+  const effStreak = rpgService.getEffectiveIndividualStreak(
+    row.dqs_last_completed_date,
+    row.dqs_current_streak,
+    row.dqs_best_streak,
+    currentDate
+  );
+
+  return {
+    ...baseQuest,
     current_streak: effStreak.current,
     best_streak: effStreak.best,
     last_completed_date: effStreak.lastCompletedDate,
@@ -74,7 +204,7 @@ function formatQuestRow(row, currentDate = null) {
  * Creates a new quest for the authenticated user.
  * Backend strictly computes XP and Gold rewards based on difficulty.
  */
-async function createQuest(userId, { title, description, category, difficulty, type = 'ONE_DAY', quest_date = null, start_date = null, end_date = null }) {
+async function createQuest(userId, { title, description, category, difficulty, type = 'ONE_DAY', quest_date = null, start_date = null, end_date = null, timer_option = 'NONE' }) {
   const rewards = DIFFICULTY_REWARDS[difficulty];
   if (!rewards) {
     const error = new Error('Invalid quest difficulty.');
@@ -83,6 +213,7 @@ async function createQuest(userId, { title, description, category, difficulty, t
   }
 
   const questType = type ? type.toUpperCase() : 'ONE_DAY';
+  const timerOpt = timer_option ? timer_option.toUpperCase() : 'NONE';
   let finalQuestDate = null;
   let finalStartDate = null;
   let finalEndDate = null;
@@ -94,11 +225,13 @@ async function createQuest(userId, { title, description, category, difficulty, t
     finalEndDate = end_date || null;
   }
 
+  const initDuration = getInitialTimerDuration(timerOpt);
+
   const result = await db.query(
-    `INSERT INTO quests (user_id, title, description, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'ACTIVE')
-     RETURNING id, user_id, title, description, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status, created_at, updated_at;`,
-    [userId, title, description, category, difficulty, questType, finalQuestDate, finalStartDate, finalEndDate, rewards.xp_reward, rewards.gold_reward]
+    `INSERT INTO quests (user_id, title, description, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status, timer_option, timer_duration_seconds, timer_status, timer_remaining_seconds, timer_current_day)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'ACTIVE', $12, $13, 'STOPPED', $13, CURRENT_DATE)
+     RETURNING id, user_id, title, description, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status, timer_option, timer_duration_seconds, timer_status, timer_started_at, timer_paused_at, timer_remaining_seconds, timer_current_day, created_at, updated_at;`,
+    [userId, title, description, category, difficulty, questType, finalQuestDate, finalStartDate, finalEndDate, rewards.xp_reward, rewards.gold_reward, timerOpt, initDuration]
   );
 
   const newQuest = result.rows[0];
@@ -126,7 +259,7 @@ async function createQuest(userId, { title, description, category, difficulty, t
  */
 async function getUserQuests(userId) {
   const result = await db.query(
-    `SELECT q.id, q.user_id, q.title, q.description, q.category, q.difficulty, q.type, q.quest_date, q.start_date, q.end_date, q.xp_reward, q.gold_reward, q.status, q.created_at, q.completed_at, q.updated_at,
+    `SELECT q.id, q.user_id, q.title, q.description, q.category, q.difficulty, q.type, q.quest_date, q.start_date, q.end_date, q.xp_reward, q.gold_reward, q.status, q.timer_option, q.timer_duration_seconds, q.timer_status, q.timer_started_at, q.timer_paused_at, q.timer_remaining_seconds, q.timer_current_day, q.created_at, q.completed_at, q.updated_at,
             dqs.current_streak AS dqs_current_streak,
             dqs.best_streak AS dqs_best_streak,
             dqs.last_completed_date AS dqs_last_completed_date,
@@ -152,7 +285,7 @@ async function getUserQuests(userId) {
  */
 async function getQuestById(userId, questId) {
   const result = await db.query(
-    `SELECT q.id, q.user_id, q.title, q.description, q.category, q.difficulty, q.type, q.quest_date, q.start_date, q.end_date, q.xp_reward, q.gold_reward, q.status, q.created_at, q.completed_at, q.updated_at,
+    `SELECT q.id, q.user_id, q.title, q.description, q.category, q.difficulty, q.type, q.quest_date, q.start_date, q.end_date, q.xp_reward, q.gold_reward, q.status, q.timer_option, q.timer_duration_seconds, q.timer_status, q.timer_started_at, q.timer_paused_at, q.timer_remaining_seconds, q.timer_current_day, q.created_at, q.completed_at, q.updated_at,
             dqs.current_streak AS dqs_current_streak,
             dqs.best_streak AS dqs_best_streak,
             dqs.last_completed_date AS dqs_last_completed_date,
@@ -213,19 +346,34 @@ async function updateQuest(userId, questId, data) {
     end_date = type === 'DAILY' ? data.end_date : null;
   }
 
+  let timer_option = existingQuest.timer_option;
+  let timer_duration_seconds = existingQuest.timer_duration_seconds;
+  let timer_status = existingQuest.timer_status;
+  let timer_started_at = existingQuest.timer_started_at;
+  let timer_paused_at = existingQuest.timer_paused_at;
+  let timer_remaining_seconds = existingQuest.timer_remaining_seconds;
+
+  if (data.timer_option !== undefined && data.timer_option !== existingQuest.timer_option) {
+    timer_option = data.timer_option.toUpperCase();
+    const initDuration = getInitialTimerDuration(timer_option);
+    timer_status = 'STOPPED';
+    timer_duration_seconds = initDuration;
+    timer_remaining_seconds = initDuration;
+    timer_started_at = null;
+    timer_paused_at = null;
+  }
+
   const rewards = DIFFICULTY_REWARDS[difficulty];
   const xp_reward = rewards.xp_reward;
   const gold_reward = rewards.gold_reward;
 
   const result = await db.query(
     `UPDATE quests
-     SET title = $1, description = $2, category = $3, difficulty = $4, type = $5, quest_date = $6, start_date = $7, end_date = $8, xp_reward = $9, gold_reward = $10, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $11 AND user_id = $12
-     RETURNING id, user_id, title, description, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status, created_at, completed_at, updated_at;`,
-    [title, description, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, questId, userId]
+     SET title = $1, description = $2, category = $3, difficulty = $4, type = $5, quest_date = $6, start_date = $7, end_date = $8, xp_reward = $9, gold_reward = $10, timer_option = $11, timer_duration_seconds = $12, timer_status = $13, timer_started_at = $14, timer_paused_at = $15, timer_remaining_seconds = $16, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $17 AND user_id = $18
+     RETURNING *;`,
+    [title, description, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, timer_option, timer_duration_seconds, timer_status, timer_started_at, timer_paused_at, timer_remaining_seconds, questId, userId]
   );
-
-  const updatedQuestRow = result.rows[0];
 
   if (type === 'DAILY') {
     await db.query(
@@ -235,6 +383,143 @@ async function updateQuest(userId, questId, data) {
       [questId, userId]
     );
   }
+
+  return getQuestById(userId, questId);
+}
+
+/**
+ * Starts a quest timer.
+ */
+async function startTimer(userId, questId) {
+  const quest = await getQuestById(userId, questId);
+
+  if (quest.timer_option === 'NONE') {
+    const error = new Error('This quest does not have a timer enabled.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (quest.status === 'COMPLETED' && quest.type === 'ONE_DAY') {
+    const error = new Error('Cannot start timer for a completed quest.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const initDuration = getInitialTimerDuration(quest.timer_option);
+
+  await db.query(
+    `UPDATE quests
+     SET timer_status = 'RUNNING',
+         timer_started_at = CURRENT_TIMESTAMP,
+         timer_paused_at = NULL,
+         timer_duration_seconds = $1,
+         timer_remaining_seconds = $1,
+         timer_current_day = CURRENT_DATE,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2 AND user_id = $3;`,
+    [initDuration, questId, userId]
+  );
+
+  return getQuestById(userId, questId);
+}
+
+/**
+ * Pauses a running quest timer.
+ */
+async function pauseTimer(userId, questId) {
+  const quest = await getQuestById(userId, questId);
+
+  if (quest.timer_option === 'NONE') {
+    const error = new Error('This quest does not have a timer enabled.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (quest.timer_status !== 'RUNNING') {
+    const error = new Error('Timer is not running.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const remaining = quest.timer_remaining_seconds;
+
+  await db.query(
+    `UPDATE quests
+     SET timer_status = 'PAUSED',
+         timer_paused_at = CURRENT_TIMESTAMP,
+         timer_remaining_seconds = $1,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2 AND user_id = $3;`,
+    [remaining, questId, userId]
+  );
+
+  return getQuestById(userId, questId);
+}
+
+/**
+ * Resumes a paused quest timer.
+ */
+async function resumeTimer(userId, questId) {
+  const quest = await getQuestById(userId, questId);
+
+  if (quest.timer_option === 'NONE') {
+    const error = new Error('This quest does not have a timer enabled.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (quest.timer_status !== 'PAUSED') {
+    const error = new Error('Timer is not paused.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (quest.timer_remaining_seconds <= 0 || quest.is_expired) {
+    const error = new Error('Timer has expired.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  await db.query(
+    `UPDATE quests
+     SET timer_status = 'RUNNING',
+         timer_started_at = CURRENT_TIMESTAMP,
+         timer_paused_at = NULL,
+         timer_current_day = CURRENT_DATE,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1 AND user_id = $2;`,
+    [questId, userId]
+  );
+
+  return getQuestById(userId, questId);
+}
+
+/**
+ * Resets a quest timer to initial state.
+ */
+async function resetTimer(userId, questId) {
+  const quest = await getQuestById(userId, questId);
+
+  if (quest.timer_option === 'NONE') {
+    const error = new Error('This quest does not have a timer enabled.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const initDuration = getInitialTimerDuration(quest.timer_option);
+
+  await db.query(
+    `UPDATE quests
+     SET timer_status = 'STOPPED',
+         timer_started_at = NULL,
+         timer_paused_at = NULL,
+         timer_duration_seconds = $1,
+         timer_remaining_seconds = $1,
+         timer_current_day = CURRENT_DATE,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2 AND user_id = $3;`,
+    [initDuration, questId, userId]
+  );
 
   return getQuestById(userId, questId);
 }
@@ -269,7 +554,7 @@ async function completeQuest(userId, questId, testDateString = null) {
 
     // 1. Lock Quest FOR UPDATE
     const questRes = await client.query(
-      `SELECT id, user_id, title, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status
+      `SELECT id, user_id, title, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status, timer_option, timer_duration_seconds, timer_status, timer_started_at, timer_paused_at, timer_remaining_seconds, timer_current_day
        FROM quests
        WHERE id = $1 AND user_id = $2
        FOR UPDATE;`,
@@ -395,7 +680,7 @@ async function completeQuest(userId, questId, testDateString = null) {
         `UPDATE quests
          SET status = 'COMPLETED', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 AND user_id = $2
-         RETURNING id, title, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status, completed_at, updated_at;`,
+         RETURNING *;`,
         [quest.id, userId]
       );
     } else {
@@ -403,7 +688,7 @@ async function completeQuest(userId, questId, testDateString = null) {
         `UPDATE quests
          SET completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 AND user_id = $2
-         RETURNING id, title, category, difficulty, type, quest_date, start_date, end_date, xp_reward, gold_reward, status, completed_at, updated_at;`,
+         RETURNING *;`,
         [quest.id, userId]
       );
     }
@@ -496,5 +781,9 @@ module.exports = {
   getQuestById,
   updateQuest,
   deleteQuest,
-  completeQuest
+  completeQuest,
+  startTimer,
+  pauseTimer,
+  resumeTimer,
+  resetTimer
 };

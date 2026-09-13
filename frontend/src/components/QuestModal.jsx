@@ -14,12 +14,20 @@ const DIFFICULTIES = [
   { value: 'HARD', label: 'Hard (75 XP, 40 Gold)', xp: 75, gold: 40 }
 ];
 
+const TIMER_OPTIONS = [
+  { value: 'NONE', label: 'No Timer' },
+  { value: '1_HOUR', label: '1 Hour' },
+  { value: '2_HOURS', label: '2 Hours' },
+  { value: 'FULL_DAY', label: 'Full Day' }
+];
+
 export const QuestModal = ({ isOpen, onClose, onSubmit, initialQuest = null }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('CODING');
   const [difficulty, setDifficulty] = useState('MEDIUM');
   const [type, setType] = useState('DAILY');
+  const [timerOption, setTimerOption] = useState('NONE');
   const [questDate, setQuestDate] = useState(new Date().toISOString().substring(0, 10));
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -33,6 +41,7 @@ export const QuestModal = ({ isOpen, onClose, onSubmit, initialQuest = null }) =
       setCategory(initialQuest.category || 'CODING');
       setDifficulty(initialQuest.difficulty || 'MEDIUM');
       setType(initialQuest.type || 'DAILY');
+      setTimerOption(initialQuest.timer_option || 'NONE');
       setQuestDate(initialQuest.quest_date ? initialQuest.quest_date.substring(0, 10) : new Date().toISOString().substring(0, 10));
       setStartDate(initialQuest.start_date ? initialQuest.start_date.substring(0, 10) : '');
       setEndDate(initialQuest.end_date ? initialQuest.end_date.substring(0, 10) : '');
@@ -42,6 +51,7 @@ export const QuestModal = ({ isOpen, onClose, onSubmit, initialQuest = null }) =
       setCategory('CODING');
       setDifficulty('MEDIUM');
       setType('DAILY');
+      setTimerOption('NONE');
       setQuestDate(new Date().toISOString().substring(0, 10));
       setStartDate(new Date().toISOString().substring(0, 10));
       setEndDate('');
@@ -82,7 +92,8 @@ export const QuestModal = ({ isOpen, onClose, onSubmit, initialQuest = null }) =
         type,
         quest_date: type === 'ONE_DAY' ? questDate : null,
         start_date: type === 'DAILY' && startDate ? startDate : null,
-        end_date: type === 'DAILY' && endDate ? endDate : null
+        end_date: type === 'DAILY' && endDate ? endDate : null,
+        timer_option: timerOption
       });
       onClose();
     } catch (err) {
@@ -277,6 +288,31 @@ export const QuestModal = ({ isOpen, onClose, onSubmit, initialQuest = null }) =
                 {DIFFICULTIES.map(d => (
                   <option key={d.value} value={d.value} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
                     {d.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                Timer Option
+              </label>
+              <select
+                value={timerOption}
+                onChange={(e) => setTimerOption(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.6rem 0.75rem',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-main)',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {TIMER_OPTIONS.map(t => (
+                  <option key={t.value} value={t.value} style={{ background: 'var(--bg-card)', color: 'var(--text-main)' }}>
+                    {t.label}
                   </option>
                 ))}
               </select>

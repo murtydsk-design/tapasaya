@@ -13,4 +13,11 @@ router.put('/:id', questController.updateQuest);
 router.delete('/:id', questController.deleteQuest);
 router.post('/:id/complete', questController.completeQuest);
 
+// Timer API Endpoints
+router.get('/:id/timer', questController.getTimer);
+router.post('/:id/timer/start', questController.startTimer);
+router.post('/:id/timer/pause', questController.pauseTimer);
+router.post('/:id/timer/resume', questController.resumeTimer);
+router.post('/:id/timer/reset', questController.resetTimer);
+
 module.exports = router;

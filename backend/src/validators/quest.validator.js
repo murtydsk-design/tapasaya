@@ -15,7 +15,7 @@ function validateQuestId(id) {
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function validateCreateQuest(data = {}) {
-  const { title, description, category, difficulty, type, date, quest_date, start_date, end_date } = data;
+  const { title, description, category, difficulty, type, date, quest_date, start_date, end_date, timer_option } = data;
 
   if (!title || typeof title !== 'string' || title.trim().length === 0) {
     return {
@@ -50,6 +50,14 @@ function validateCreateQuest(data = {}) {
     return {
       isValid: false,
       message: 'Invalid quest type. Must be DAILY or ONE_DAY.'
+    };
+  }
+
+  const timerOpt = timer_option ? timer_option.toUpperCase() : 'NONE';
+  if (!['NONE', '1_HOUR', '2_HOURS', 'FULL_DAY'].includes(timerOpt)) {
+    return {
+      isValid: false,
+      message: 'Invalid timer option. Must be NONE, 1_HOUR, 2_HOURS, or FULL_DAY.'
     };
   }
 
@@ -108,13 +116,14 @@ function validateCreateQuest(data = {}) {
       type: questType,
       quest_date: finalQuestDate,
       start_date: finalStartDate,
-      end_date: finalEndDate
+      end_date: finalEndDate,
+      timer_option: timerOpt
     }
   };
 }
 
 function validateUpdateQuest(data = {}) {
-  const { title, description, category, difficulty, type, date, quest_date, start_date, end_date } = data;
+  const { title, description, category, difficulty, type, date, quest_date, start_date, end_date, timer_option } = data;
 
   if (title !== undefined) {
     if (typeof title !== 'string' || title.trim().length === 0) {
@@ -158,12 +167,22 @@ function validateUpdateQuest(data = {}) {
     }
   }
 
+  if (timer_option !== undefined) {
+    if (typeof timer_option !== 'string' || !['NONE', '1_HOUR', '2_HOURS', 'FULL_DAY'].includes(timer_option.toUpperCase())) {
+      return {
+        isValid: false,
+        message: 'Invalid timer option. Must be NONE, 1_HOUR, 2_HOURS, or FULL_DAY.'
+      };
+    }
+  }
+
   const normalized = {};
   if (title !== undefined) normalized.title = title.trim();
   if (description !== undefined) normalized.description = typeof description === 'string' ? description.trim() : null;
   if (category !== undefined) normalized.category = category.toUpperCase();
   if (difficulty !== undefined) normalized.difficulty = difficulty.toUpperCase();
   if (type !== undefined) normalized.type = type.toUpperCase();
+  if (timer_option !== undefined) normalized.timer_option = timer_option.toUpperCase();
 
   const rawDate = date || quest_date;
   if (rawDate !== undefined) {

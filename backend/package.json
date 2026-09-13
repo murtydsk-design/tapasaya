@@ -13,7 +13,8 @@
     "test:quests": "node src/test-quests.js",
     "test:rpg": "node src/test-rpg.js",
     "test:rewards": "node src/test-rewards.js",
-    "test": "node src/test-backend.js && node src/test-auth.js && node src/test-security-auth.js && node src/test-quests.js && node src/test-rpg.js && node src/test-rewards.js"
+    "test:timer": "node src/test-timer.js",
+    "test": "node src/test-backend.js && node src/test-auth.js && node src/test-security-auth.js && node src/test-quests.js && node src/test-rpg.js && node src/test-rewards.js && node src/test-timer.js"
   },
   "keywords": [
     "tapasya",

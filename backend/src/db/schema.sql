@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS quests (
     xp_reward INTEGER NOT NULL CHECK (xp_reward >= 0),
     gold_reward INTEGER NOT NULL CHECK (gold_reward >= 0),
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'COMPLETED')),
+    timer_option VARCHAR(20) NOT NULL DEFAULT 'NONE' CHECK (timer_option IN ('NONE', '1_HOUR', '2_HOURS', 'FULL_DAY')),
+    timer_duration_seconds INTEGER NULL,
+    timer_status VARCHAR(20) NOT NULL DEFAULT 'STOPPED' CHECK (timer_status IN ('STOPPED', 'RUNNING', 'PAUSED')),
+    timer_started_at TIMESTAMPTZ NULL,
+    timer_paused_at TIMESTAMPTZ NULL,
+    timer_remaining_seconds INTEGER NULL,
+    timer_current_day DATE NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

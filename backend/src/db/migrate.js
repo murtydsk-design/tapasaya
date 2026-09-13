@@ -49,8 +49,16 @@ async function runMigration() {
 
       ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_discipline_check;
       ALTER TABLE characters ADD CONSTRAINT characters_discipline_check CHECK (discipline >= 0);
+
+      ALTER TABLE quests ADD COLUMN IF NOT EXISTS timer_option VARCHAR(20) DEFAULT 'NONE';
+      ALTER TABLE quests ADD COLUMN IF NOT EXISTS timer_duration_seconds INTEGER;
+      ALTER TABLE quests ADD COLUMN IF NOT EXISTS timer_status VARCHAR(20) DEFAULT 'STOPPED';
+      ALTER TABLE quests ADD COLUMN IF NOT EXISTS timer_started_at TIMESTAMPTZ;
+      ALTER TABLE quests ADD COLUMN IF NOT EXISTS timer_paused_at TIMESTAMPTZ;
+      ALTER TABLE quests ADD COLUMN IF NOT EXISTS timer_remaining_seconds INTEGER;
+      ALTER TABLE quests ADD COLUMN IF NOT EXISTS timer_current_day DATE;
     `);
-    console.log('✅ Schema tables, constraints, avatar columns, and attribute defaults updated successfully.');
+    console.log('✅ Schema tables, constraints, avatar columns, and quest timer columns updated successfully.');
 
     console.log('🌱 Applying Seed Data...');
     await client.query(seedSql);
