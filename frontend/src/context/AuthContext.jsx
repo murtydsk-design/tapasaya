@@ -5,13 +5,31 @@ export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('tapasya_token'));
+  const [token, setToken] = useState(() => {
+    // If mounted on public entry point '/', clear any stored token immediately
+    if (window.location.pathname === '/') {
+      sessionStorage.removeItem('tapasya_token');
+      localStorage.removeItem('tapasya_token');
+      return null;
+    }
+    return sessionStorage.getItem('tapasya_token') || localStorage.getItem('tapasya_token');
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Check authenticated session on startup
+  // Check authenticated session on startup / navigation
   const checkAuth = useCallback(async () => {
-    const storedToken = localStorage.getItem('tapasya_token');
+    // 1. If opening or accessing public entry point '/', clear persisted session & start logged out
+    if (window.location.pathname === '/') {
+      sessionStorage.removeItem('tapasya_token');
+      localStorage.removeItem('tapasya_token');
+      setUser(null);
+      setToken(null);
+      setLoading(false);
+      return;
+    }
+
+    const storedToken = sessionStorage.getItem('tapasya_token') || localStorage.getItem('tapasya_token');
     if (!storedToken) {
       setUser(null);
       setToken(null);
@@ -26,11 +44,13 @@ export const AuthProvider = ({ children }) => {
         setUser(res.user);
         setToken(storedToken);
       } else {
+        sessionStorage.removeItem('tapasya_token');
         localStorage.removeItem('tapasya_token');
         setUser(null);
         setToken(null);
       }
     } catch (err) {
+      sessionStorage.removeItem('tapasya_token');
       localStorage.removeItem('tapasya_token');
       setUser(null);
       setToken(null);
@@ -48,7 +68,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authApi.login(email, password);
       if (res.success && res.token && res.user) {
-        localStorage.setItem('tapasya_token', res.token);
+        sessionStorage.setItem('tapasya_token', res.token);
+        localStorage.removeItem('tapasya_token');
         setToken(res.token);
         setUser(res.user);
         return { success: true };
@@ -65,7 +86,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authApi.register(name, email, password);
       if (res.success && res.token && res.user) {
-        localStorage.setItem('tapasya_token', res.token);
+        sessionStorage.setItem('tapasya_token', res.token);
+        localStorage.removeItem('tapasya_token');
         setToken(res.token);
         setUser(res.user);
         return { success: true };
@@ -82,7 +104,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await authApi.googleLogin(credential);
       if (res.success && res.token && res.user) {
-        localStorage.setItem('tapasya_token', res.token);
+        sessionStorage.setItem('tapasya_token', res.token);
+        localStorage.removeItem('tapasya_token');
         setToken(res.token);
         setUser(res.user);
         return { success: true };
@@ -101,6 +124,7 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {
       // Ignore network errors on logout
     } finally {
+      sessionStorage.removeItem('tapasya_token');
       localStorage.removeItem('tapasya_token');
       setUser(null);
       setToken(null);

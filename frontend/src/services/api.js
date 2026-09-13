@@ -16,7 +16,7 @@ const api = axios.create({
 // Request Interceptor: Attach JWT Bearer token if available
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('tapasya_token');
+    const token = sessionStorage.getItem('tapasya_token') || localStorage.getItem('tapasya_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -36,6 +36,7 @@ api.interceptors.response.use(
 
     // If unauthenticated (401) and not currently on auth routes, emit token expiration
     if (error.response?.status === 401 && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/signup')) {
+      sessionStorage.removeItem('tapasya_token');
       localStorage.removeItem('tapasya_token');
     }
 
