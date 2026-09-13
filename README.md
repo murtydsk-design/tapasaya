@@ -23,7 +23,16 @@ The project structure and business logic strictly follow five core specification
 - **Frontend**: React, React Router, Axios, CSS Modules / Vanilla CSS
 - **Backend**: Node.js, Express.js, REST API
 - **Database**: PostgreSQL hosted on **Neon PostgreSQL**
-- **Authentication**: JWT (JSON Web Tokens) with hashed passwords (`bcryptjs`)
+- **Authentication**: JWT (JSON Web Tokens) with hashed passwords (`bcryptjs`) & Google OAuth 2.0
+
+---
+
+## 🤖 AI Tools Used
+
+This project was developed with the assistance of state-of-the-art AI tooling and agentic coding workflows:
+
+- **Google Antigravity AI (Antigravity IDE / AGY CLI)**: Used for end-to-end full-stack software development, architectural planning, automated PostgreSQL schema migrations, React component synthesis, real-time verification testing, and git operations.
+- **Google Gemini**: Powered the intelligence and reasoning engine behind code generation, multi-file refactoring, non-linear RPG progression math, anti-cheating backend security, and comprehensive test suite creation.
 
 ---
 
